@@ -10,6 +10,13 @@
 !.yarn/releases
 !.yarn/versions
 
+# local dev
+.vscode/
+.idea/
+
+# local test databases
+*.db
+
 # testing
 /coverage
 
@@ -32,6 +39,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +47,22 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Supabase
+supabase/.temp
+supabase/migrations/*-shadow.sql
+
+# Mapbox cache
+.mapbox-token
+.mapbox-cache/
+
+# macOS
+Icon?
+**/.DS_Store
+
+# Local storage (juste au cas où)
+*.local
+
+# Logs
+logs
+*.log
