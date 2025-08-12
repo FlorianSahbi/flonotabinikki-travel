@@ -138,6 +138,17 @@ export type Database = {
       }
     }
     Functions: {
+      get_context_videos: {
+        Args: { target_id: string }
+        Returns: {
+          id: string
+          bucket_url: string
+          recorded_at: string
+          lat: number
+          lng: number
+          position: number
+        }[]
+      }
       get_random_videos: {
         Args: Record<PropertyKey, never>
         Returns: {

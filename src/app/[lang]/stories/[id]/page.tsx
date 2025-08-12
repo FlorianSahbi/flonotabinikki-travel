@@ -1,13 +1,14 @@
 import { supabase } from '@/lib/supabaseClient'
 import StoriesFeed from '@/components/stories/StoriesFeed'
 
-export default async function StoriesPage() {
-  const { data, error } = await supabase
-    .from('videos')
-    .select('id, bucket_url, recorded_at, lat, lng, position')
-    .eq('is_published', true)
-    .order('recorded_at', { ascending: true }) // Tri par ordre ascendant
-    .limit(3)
+export default async function StoriesPage({
+  params,
+}: {
+  params: { id: string }
+}) {
+  const { data, error } = await supabase.rpc('get_context_videos', {
+    target_id: params.id,
+  })
 
   if (error) {
     console.error('Erreur lors de la récupération des vidéos:', error.message)
@@ -22,5 +23,5 @@ export default async function StoriesPage() {
     return <div className="p-6">Aucune vidéo disponible</div>
   }
 
-  return <StoriesFeed data={data} />
+  return <StoriesFeed data={data} initialId={params.id} />
 }

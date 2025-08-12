@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import type { Tables } from '@/types/supabase'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel } from 'swiper/modules'
@@ -13,10 +13,17 @@ type VideoLite = Pick<
 
 type Props = {
   data: VideoLite[]
+  initialId?: string
 }
 
-export default function StoriesFeed({ data }: Props) {
+export default function StoriesFeed({ data, initialId }: Props) {
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
+  const [initialIndex, setInitialIndex] = useState<number | null>(null)
+
+  useEffect(() => {
+    const idx = initialId ? data.findIndex((v) => v.id === initialId) : 0
+    setInitialIndex(idx >= 0 ? idx : 0)
+  }, [data, initialId])
 
   const setPlayForIndex = (activeIndex: number) => {
     videoRefs.current.forEach((v, i) => {
@@ -32,15 +39,28 @@ export default function StoriesFeed({ data }: Props) {
     })
   }
 
+  const handleSlideChange = (sw: { activeIndex: number }) => {
+    setPlayForIndex(sw.activeIndex)
+    const newId = data[sw.activeIndex]?.id
+    if (newId) {
+      window.history.replaceState(null, '', `/stories/${newId}`)
+    }
+  }
+
+  if (initialIndex === null) {
+    return null
+  }
+
   return (
     <div className="h-[100dvh] w-screen bg-black">
       <Swiper
         modules={[Mousewheel]}
         direction="vertical"
         slidesPerView={1}
+        initialSlide={initialIndex}
         mousewheel={{ forceToAxis: true, sensitivity: 1 }}
         resistanceRatio={0.85}
-        onSlideChange={(sw) => setPlayForIndex(sw.activeIndex)}
+        onSlideChange={handleSlideChange}
         onAfterInit={(sw) => setPlayForIndex(sw.activeIndex)}
         className="h-full"
       >
@@ -57,11 +77,12 @@ export default function StoriesFeed({ data }: Props) {
                   src={it.bucket_url}
                   playsInline
                   muted
-                  autoPlay={i === 0}
-                  preload={i === 0 || i === nextIndex ? 'auto' : 'metadata'}
+                  autoPlay={i === initialIndex}
+                  preload={
+                    i === initialIndex || i === nextIndex ? 'auto' : 'metadata'
+                  }
                   loop
                 />
-
                 <div className="absolute left-3 top-3 rounded bg-black/55 px-2 py-1 text-xs text-white">
                   {new Date(it.recorded_at).toLocaleString('fr-FR', {
                     day: '2-digit',
@@ -72,7 +93,6 @@ export default function StoriesFeed({ data }: Props) {
                   })}
                   /{it.position}
                 </div>
-
                 <div className="absolute bottom-3 left-3 rounded bg-black/55 px-2 py-1 text-xs text-white">
                   {it.lat.toFixed(4)} / {it.lng.toFixed(4)}
                 </div>
