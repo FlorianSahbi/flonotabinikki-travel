@@ -6,6 +6,9 @@ import { Mousewheel } from 'swiper/modules'
 import 'swiper/css'
 import { supabase } from '@/lib/supabaseClient'
 import type { Tables } from '@/types/supabase'
+import MiniMapOverlay, {
+  MiniMapOverlayRef,
+} from '@/components/stories/MiniMapOverlay'
 
 type VideoLite = Pick<
   Tables<'videos'>,
@@ -49,6 +52,8 @@ export default function StoriesFeed({
   const idsRef = useRef(new Set(initialVideos.map((v) => v.id))) // anti-doublons
   const loadingNextRef = useRef(false)
   const loadingPrevRef = useRef(false)
+  const activeIndexRef = useRef(0)
+  const miniMapRef = useRef<MiniMapOverlayRef>(null)
 
   const initialIndex = useMemo(
     () =>
@@ -83,7 +88,11 @@ export default function StoriesFeed({
       const fresh = more.filter((v) => !idsRef.current.has(v.id))
       if (fresh.length) {
         fresh.forEach((v) => idsRef.current.add(v.id))
-        setVideos((prev) => [...prev, ...fresh])
+        setVideos((prev) => {
+          const updated = [...prev, ...fresh]
+          miniMapRef.current?.updatePoints(updated) // mise à jour map
+          return updated
+        })
       }
     } finally {
       loadingNextRef.current = false
@@ -105,7 +114,11 @@ export default function StoriesFeed({
       if (fresh.length) {
         const active = swiper.activeIndex ?? 0
         fresh.forEach((v) => idsRef.current.add(v.id))
-        setVideos((prev) => [...fresh, ...prev])
+        setVideos((prev) => {
+          const updated = [...fresh, ...prev]
+          miniMapRef.current?.updatePoints(updated) // mise à jour map
+          return updated
+        })
         requestAnimationFrame(() => {
           swiper.slideTo(active + fresh.length, 0)
         })
@@ -117,15 +130,19 @@ export default function StoriesFeed({
 
   const handleSlideChange = (sw: { activeIndex: number }) => {
     const idx = sw.activeIndex
+    activeIndexRef.current = idx
     setPlayForIndex(idx)
 
-    // Met à jour l’URL sans navigation
     const currentId = videos[idx]?.id
     if (currentId) {
       window.history.replaceState(null, '', `/stories/${currentId}`)
     }
 
-    // Triggers simples (tampon 2)
+    const video = videos[idx]
+    if (miniMapRef.current && video?.lat != null && video?.lng != null) {
+      miniMapRef.current.flyTo(video.lng, video.lat)
+    }
+
     if (idx >= videos.length - 2) appendAfter()
     if (idx <= 1) prependBefore()
   }
@@ -136,6 +153,19 @@ export default function StoriesFeed({
 
   return (
     <div className="h-[100dvh] w-screen bg-black">
+      <MiniMapOverlay
+        ref={miniMapRef}
+        initialPoints={initialVideos.map((v) => ({
+          id: v.id,
+          lat: v.lat ?? null,
+          lng: v.lng ?? null,
+        }))}
+        center={[
+          videos[initialIndex]?.lng ?? 0,
+          videos[initialIndex]?.lat ?? 0,
+        ]}
+      />
+
       <Swiper
         modules={[Mousewheel]}
         direction="vertical"
@@ -149,6 +179,14 @@ export default function StoriesFeed({
         onAfterInit={(sw) => setPlayForIndex(sw.activeIndex)}
         onSlideChange={handleSlideChange}
         className="h-full"
+        threshold={10}
+        longSwipes={true}
+        longSwipesRatio={0.3}
+        longSwipesMs={300}
+        followFinger={true}
+        touchReleaseOnEdges={true}
+        allowTouchMove={true}
+        speed={400}
       >
         {videos.map((it, i) => {
           const nextIndex = Math.min(i + 1, videos.length - 1)
