@@ -64,30 +64,6 @@ export type Database = {
         }
         Relationships: []
       }
-      clusters_duplicate: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          name: string
-          preview: string | null
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          name: string
-          preview?: string | null
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          name?: string
-          preview?: string | null
-        }
-        Relationships: []
-      }
       videos: {
         Row: {
           bucket_path: string
@@ -97,10 +73,10 @@ export type Database = {
           description: string | null
           id: string
           is_published: boolean | null
-          lat: number | null
-          lng: number | null
+          lat: number
+          lng: number
           position: number
-          recorded_at: string | null
+          recorded_at: string
           subtitle: string | null
           title: string | null
         }
@@ -112,10 +88,10 @@ export type Database = {
           description?: string | null
           id?: string
           is_published?: boolean | null
-          lat?: number | null
-          lng?: number | null
+          lat: number
+          lng: number
           position: number
-          recorded_at?: string | null
+          recorded_at: string
           subtitle?: string | null
           title?: string | null
         }
@@ -127,10 +103,10 @@ export type Database = {
           description?: string | null
           id?: string
           is_published?: boolean | null
-          lat?: number | null
-          lng?: number | null
+          lat?: number
+          lng?: number
           position?: number
-          recorded_at?: string | null
+          recorded_at?: string
           subtitle?: string | null
           title?: string | null
         }
@@ -144,69 +120,6 @@ export type Database = {
           },
           {
             foreignKeyName: "videos_cluster_id_fkey"
-            columns: ["cluster_id"]
-            isOneToOne: false
-            referencedRelation: "clusters"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      videos_duplicate: {
-        Row: {
-          bucket_path: string
-          bucket_url: string
-          cluster_id: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-          is_published: boolean | null
-          lat: number | null
-          lng: number | null
-          position: number
-          recorded_at: string | null
-          subtitle: string | null
-          title: string | null
-        }
-        Insert: {
-          bucket_path: string
-          bucket_url: string
-          cluster_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          is_published?: boolean | null
-          lat?: number | null
-          lng?: number | null
-          position: number
-          recorded_at?: string | null
-          subtitle?: string | null
-          title?: string | null
-        }
-        Update: {
-          bucket_path?: string
-          bucket_url?: string
-          cluster_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          is_published?: boolean | null
-          lat?: number | null
-          lng?: number | null
-          position?: number
-          recorded_at?: string | null
-          subtitle?: string | null
-          title?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "videos_duplicate_cluster_id_fkey"
-            columns: ["cluster_id"]
-            isOneToOne: false
-            referencedRelation: "cluster_heads"
-            referencedColumns: ["cluster_id"]
-          },
-          {
-            foreignKeyName: "videos_duplicate_cluster_id_fkey"
             columns: ["cluster_id"]
             isOneToOne: false
             referencedRelation: "clusters"
@@ -235,10 +148,10 @@ export type Database = {
           description: string | null
           id: string
           is_published: boolean | null
-          lat: number | null
-          lng: number | null
+          lat: number
+          lng: number
           position: number
-          recorded_at: string | null
+          recorded_at: string
           subtitle: string | null
           title: string | null
         }[]
