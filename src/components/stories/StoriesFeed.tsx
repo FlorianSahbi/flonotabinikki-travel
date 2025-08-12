@@ -9,6 +9,7 @@ import type { Tables } from '@/types/supabase'
 import MiniMapOverlay, {
   MiniMapOverlayRef,
 } from '@/components/stories/MiniMapOverlay'
+import { useRouter } from 'next/navigation'
 
 type VideoLite = Pick<
   Tables<'videos'>,
@@ -46,6 +47,7 @@ export default function StoriesFeed({
   initialId: string
   initialVideos: VideoLite[]
 }) {
+  const router = useRouter()
   const swiperRef = useRef<unknown>(null)
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
   const [videos, setVideos] = useState<VideoLite[]>(initialVideos)
@@ -157,15 +159,20 @@ export default function StoriesFeed({
         ref={miniMapRef}
         initialPoints={initialVideos.map((v) => ({
           id: v.id,
-          lat: v.lat ?? null,
-          lng: v.lng ?? null,
+          lat: v.lat!,
+          lng: v.lng!,
         }))}
         center={[
           videos[initialIndex]?.lng ?? 0,
           videos[initialIndex]?.lat ?? 0,
         ]}
+        onClick={() => {
+          const current = videos[activeIndexRef.current]
+          if (current) {
+            router.push(`/explore?focus=${current.id}`)
+          }
+        }}
       />
-
       <Swiper
         modules={[Mousewheel]}
         direction="vertical"

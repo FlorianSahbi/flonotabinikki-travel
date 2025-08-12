@@ -1,43 +1,37 @@
 'use client'
 
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Tables } from '@/types/supabase'
-import { useRouter } from 'next/navigation'
 
-type Point = Pick<Tables<'videos'>, 'id' | 'lat' | 'lng'>
+type Props = {
+  initialPoints: Pick<Tables<'videos'>, 'id' | 'lat' | 'lng'>[]
+  center: [number, number]
+  onClick?: () => void
+}
 
 export type MiniMapOverlayRef = {
   flyTo: (lng: number, lat: number) => void
-  updatePoints: (points: Point[]) => void
-}
-
-type Props = {
-  initialPoints: Point[]
-  center: [number, number]
+  updatePoints: (points: Pick<Tables<'videos'>, 'id' | 'lat' | 'lng'>[]) => void
 }
 
 const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
-  ({ initialPoints, center }, ref) => {
+  ({ initialPoints, center, onClick }, ref) => {
     const mapRef = useRef<mapboxgl.Map | null>(null)
     const containerRef = useRef<HTMLDivElement>(null)
-    const router = useRouter()
 
     useImperativeHandle(ref, () => ({
       flyTo: (lng: number, lat: number) => {
-        const map = mapRef.current
-        if (!map) return
-        map.flyTo({
+        mapRef.current?.flyTo({
           center: [lng, lat],
           zoom: 7.5,
           speed: 1.2,
           essential: true,
         })
       },
-      updatePoints: (points: Point[]) => {
-        const map = mapRef.current
-        const src = map?.getSource('videos') as
+      updatePoints: (points) => {
+        const src = mapRef.current?.getSource('videos') as
           | mapboxgl.GeoJSONSource
           | undefined
         if (src) {
@@ -45,7 +39,7 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
             type: 'FeatureCollection',
             features: points.map((p) => ({
               type: 'Feature',
-              geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
+              geometry: { type: 'Point', coordinates: [p.lng!, p.lat!] },
               properties: { id: p.id },
             })),
           })
@@ -66,7 +60,7 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
         pitch: 40,
         bearing: -10,
         attributionControl: false,
-        interactive: false,
+        interactive: false, // désactivé
       })
       mapRef.current = map
 
@@ -77,7 +71,7 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
             type: 'FeatureCollection',
             features: initialPoints.map((p) => ({
               type: 'Feature',
-              geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
+              geometry: { type: 'Point', coordinates: [p.lng!, p.lat!] },
               properties: { id: p.id },
             })),
           },
@@ -89,7 +83,7 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
           source: 'videos',
           paint: {
             'circle-radius': 6,
-            'circle-color': '#FF3B30',
+            'circle-color': '#FF5722',
             'circle-stroke-width': 1,
             'circle-stroke-color': '#fff',
           },
@@ -97,13 +91,12 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
       })
 
       return () => map.remove()
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [center, initialPoints])
 
     return (
       <div
-        onClick={() => router.push('/explore')}
-        className="absolute right-4 top-4 z-30"
+        onClick={onClick}
+        className="absolute right-4 top-4 z-30 cursor-pointer"
       >
         <div className="relative overflow-hidden rounded-xl shadow-lg ring-1 ring-black/10">
           <div ref={containerRef} className="h-32 w-32" />

@@ -1,4 +1,4 @@
-import ExploreMap from '@/components/map/ExploreMap'
+import ExploreMap from '@/components/explore/ExploreMap'
 import { supabase } from '@/lib/supabaseClient'
 
 export default async function ExplorePage() {
