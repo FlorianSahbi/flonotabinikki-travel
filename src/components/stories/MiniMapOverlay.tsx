@@ -8,7 +8,7 @@ import type { Tables } from '@/types/supabase'
 type Props = {
   initialPoints: Pick<Tables<'videos'>, 'id' | 'lat' | 'lng'>[]
   center: [number, number]
-  onClick?: () => void
+  onClick?: () => void // ✅ on ajoute la prop optionnelle
 }
 
 export type MiniMapOverlayRef = {
@@ -21,17 +21,36 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
     const mapRef = useRef<mapboxgl.Map | null>(null)
     const containerRef = useRef<HTMLDivElement>(null)
 
+    // Charger paramètres sauvegardés
+    const savedState = (() => {
+      try {
+        const s = localStorage.getItem('exploreMapState')
+        return s ? JSON.parse(s) : {}
+      } catch {
+        return {}
+      }
+    })()
+
+    const startZoom =
+      typeof savedState.zoom === 'number' ? savedState.zoom : 4.2
+    const startPitch =
+      typeof savedState.pitch === 'number' ? savedState.pitch : 40
+
     useImperativeHandle(ref, () => ({
       flyTo: (lng: number, lat: number) => {
-        mapRef.current?.flyTo({
-          center: [lng, lat],
-          zoom: 7.5,
-          speed: 1.2,
-          essential: true,
-        })
+        if (mapRef.current) {
+          mapRef.current.flyTo({
+            center: [lng, lat],
+            zoom: startZoom, // conserve le zoom sauvegardé
+            pitch: startPitch, // conserve le pitch sauvegardé
+            speed: 1.2,
+            essential: true,
+          })
+        }
       },
       updatePoints: (points) => {
-        const src = mapRef.current?.getSource('videos') as
+        if (!mapRef.current) return
+        const src = mapRef.current.getSource('videos') as
           | mapboxgl.GeoJSONSource
           | undefined
         if (src) {
@@ -39,7 +58,10 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
             type: 'FeatureCollection',
             features: points.map((p) => ({
               type: 'Feature',
-              geometry: { type: 'Point', coordinates: [p.lng!, p.lat!] },
+              geometry: {
+                type: 'Point',
+                coordinates: [p.lng!, p.lat!],
+              },
               properties: { id: p.id },
             })),
           })
@@ -56,11 +78,11 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
         container: containerRef.current,
         style: 'mapbox://styles/mapbox/standard',
         center,
-        zoom: 4.2,
-        pitch: 40,
+        zoom: startZoom,
+        pitch: startPitch,
         bearing: -10,
         attributionControl: false,
-        interactive: false, // désactivé
+        interactive: false,
       })
       mapRef.current = map
 
@@ -71,7 +93,10 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
             type: 'FeatureCollection',
             features: initialPoints.map((p) => ({
               type: 'Feature',
-              geometry: { type: 'Point', coordinates: [p.lng!, p.lat!] },
+              geometry: {
+                type: 'Point',
+                coordinates: [p.lng!, p.lat!],
+              },
               properties: { id: p.id },
             })),
           },
@@ -91,7 +116,7 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
       })
 
       return () => map.remove()
-    }, [center, initialPoints])
+    }, [center, startZoom, startPitch])
 
     return (
       <div
@@ -107,4 +132,5 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
 )
 
 MiniMapOverlay.displayName = 'MiniMapOverlay'
+
 export default MiniMapOverlay

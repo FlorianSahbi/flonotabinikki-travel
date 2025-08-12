@@ -21,16 +21,40 @@ export default function ExploreMap({ points }: Props) {
 
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!
 
+    // Charger paramètres sauvegardés
+    const savedState = localStorage.getItem('exploreMapState')
+    let startCenter: [number, number] = [138.0, 37.0]
+    let startZoom = 4.2
+    let startPitch = 40
+
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState)
+        if (Array.isArray(parsed.center) && parsed.center.length === 2) {
+          startCenter = parsed.center
+        }
+        if (typeof parsed.zoom === 'number') startZoom = parsed.zoom
+        if (typeof parsed.pitch === 'number') startPitch = parsed.pitch
+      } catch {}
+    }
+
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: 'mapbox://styles/mapbox/standard',
-      center: [138.0, 37.0],
-      zoom: 4.2,
-      pitch: 40,
+      center: startCenter,
+      zoom: startZoom,
+      pitch: startPitch,
       bearing: -10,
       attributionControl: false,
     })
     mapRef.current = map
+
+    // Lock pitch → à chaque move on réapplique le pitch
+    map.on('pitch', () => {
+      if (map.getPitch() !== startPitch) {
+        map.setPitch(startPitch)
+      }
+    })
 
     map.on('load', () => {
       const fc = {
@@ -43,54 +67,35 @@ export default function ExploreMap({ points }: Props) {
       }
 
       map.addSource('videos', { type: 'geojson', data: fc })
-
-      // Points normaux
       map.addLayer({
         id: 'videos-points',
         type: 'circle',
         source: 'videos',
         paint: {
           'circle-radius': 6,
-          'circle-color': '#FF5722',
+          'circle-color': [
+            'case',
+            ['==', ['get', 'id'], focusId],
+            '#2196F3', // point actif → bleu
+            '#FF5722', // point normal → orange
+          ],
           'circle-stroke-width': 1,
           'circle-stroke-color': '#fff',
         },
       })
 
-      // Point actif (bleu)
-      map.addLayer({
-        id: 'active-point',
-        type: 'circle',
-        source: 'videos',
-        filter: ['==', ['get', 'id'], ''],
-        paint: {
-          'circle-radius': 8,
-          'circle-color': '#3B82F6', // bleu visible
-          'circle-stroke-width': 1.5,
-          'circle-stroke-color': '#fff',
-        },
-      })
-
-      const setActive = (id: string | null) => {
-        map.setFilter(
-          'active-point',
-          id ? ['==', ['get', 'id'], id] : ['==', ['get', 'id'], '']
-        )
-      }
-
-      // Focus initial
+      // Focus initial depuis l'URL
       const url = new URL(window.location.href)
       const initialFocus = url.searchParams.get('focus')
       if (initialFocus) {
         setFocusId(initialFocus)
-        setActive(initialFocus)
-        const t = points.find((p) => p.id === initialFocus)
-        if (t) {
-          map.jumpTo({ center: [t.lng!, t.lat!], zoom: 7.5 })
+        const target = points.find((p) => p.id === initialFocus)
+        if (target) {
+          map.jumpTo({ center: [target.lng!, target.lat!], zoom: 7.5 })
         }
       }
 
-      // Click sur point
+      // Click sur un point
       map.on('click', 'videos-points', (e) => {
         const f = e.features?.[0]
         const id = f?.properties?.id as string | undefined
@@ -100,17 +105,16 @@ export default function ExploreMap({ points }: Props) {
         params.set('focus', id)
         window.history.replaceState(null, '', `?${params.toString()}`)
         setFocusId(id)
-        setActive(id)
 
-        const geom = f?.geometry
-        if (geom && geom.type === 'Point') {
-          const [lng, lat] = geom.coordinates as [number, number]
-          map.easeTo({
-            center: [lng, lat],
-            zoom: Math.max(map.getZoom(), 7.5),
-            duration: 400,
-          })
-        }
+        const coords = (f!.geometry as GeoJSON.Point).coordinates as [
+          number,
+          number,
+        ]
+        map.easeTo({
+          center: coords,
+          zoom: Math.max(map.getZoom(), 7.5),
+          duration: 400,
+        })
       })
 
       map.on('mouseenter', 'videos-points', () => {
@@ -121,9 +125,23 @@ export default function ExploreMap({ points }: Props) {
       })
     })
 
+    // Sauvegarde état uniquement à la fin du mouvement
+    map.on('moveend', () => {
+      const center = map.getCenter()
+      localStorage.setItem(
+        'exploreMapState',
+        JSON.stringify({
+          center: [center.lng, center.lat],
+          zoom: map.getZoom(),
+          pitch: startPitch, // toujours le pitch verrouillé
+        })
+      )
+    })
+
     return () => map.remove()
   }, [router, points])
 
+  // Update dynamique des points
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
