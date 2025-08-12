@@ -1,29 +1,63 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
-import type { Tables } from '@/types/supabase'
+import { useMemo, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel } from 'swiper/modules'
 import 'swiper/css'
+import { supabase } from '@/lib/supabaseClient'
+import type { Tables } from '@/types/supabase'
 
 type VideoLite = Pick<
   Tables<'videos'>,
   'id' | 'bucket_url' | 'recorded_at' | 'lat' | 'lng' | 'position'
 >
 
-type Props = {
-  data: VideoLite[]
-  initialId?: string
+async function fetchVideosAfter(
+  refRecordedAt: string,
+  limit = 5
+): Promise<VideoLite[]> {
+  const { data, error } = await supabase.rpc('get_videos_after', {
+    ref_time: refRecordedAt,
+    lim: limit,
+  })
+  if (error) throw new Error(error.message)
+  return (data ?? []) as VideoLite[]
 }
 
-export default function StoriesFeed({ data, initialId }: Props) {
-  const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
-  const [initialIndex, setInitialIndex] = useState<number | null>(null)
+async function fetchVideosBefore(
+  refRecordedAt: string,
+  limit = 5
+): Promise<VideoLite[]> {
+  const { data, error } = await supabase.rpc('get_videos_before', {
+    ref_time: refRecordedAt,
+    lim: limit,
+  })
+  if (error) throw new Error(error.message)
+  return (data ?? []).reverse() as VideoLite[]
+}
 
-  useEffect(() => {
-    const idx = initialId ? data.findIndex((v) => v.id === initialId) : 0
-    setInitialIndex(idx >= 0 ? idx : 0)
-  }, [data, initialId])
+export default function StoriesFeed({
+  initialId,
+  initialVideos,
+}: {
+  initialId: string
+  initialVideos: VideoLite[]
+}) {
+  const swiperRef = useRef<unknown>(null)
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
+  const [videos, setVideos] = useState<VideoLite[]>(initialVideos)
+  const idsRef = useRef(new Set(initialVideos.map((v) => v.id))) // anti-doublons
+  const loadingNextRef = useRef(false)
+  const loadingPrevRef = useRef(false)
+
+  const initialIndex = useMemo(
+    () =>
+      Math.max(
+        videos.findIndex((v) => v.id === initialId),
+        0
+      ),
+    [videos, initialId]
+  )
 
   const setPlayForIndex = (activeIndex: number) => {
     videoRefs.current.forEach((v, i) => {
@@ -39,16 +73,65 @@ export default function StoriesFeed({ data, initialId }: Props) {
     })
   }
 
-  const handleSlideChange = (sw: { activeIndex: number }) => {
-    setPlayForIndex(sw.activeIndex)
-    const newId = data[sw.activeIndex]?.id
-    if (newId) {
-      window.history.replaceState(null, '', `/stories/${newId}`)
+  const appendAfter = async () => {
+    if (loadingNextRef.current) return
+    const last = videos[videos.length - 1]
+    if (!last?.recorded_at) return
+    loadingNextRef.current = true
+    try {
+      const more = await fetchVideosAfter(last.recorded_at, 5)
+      const fresh = more.filter((v) => !idsRef.current.has(v.id))
+      if (fresh.length) {
+        fresh.forEach((v) => idsRef.current.add(v.id))
+        setVideos((prev) => [...prev, ...fresh])
+      }
+    } finally {
+      loadingNextRef.current = false
     }
   }
 
-  if (initialIndex === null) {
-    return null
+  const prependBefore = async () => {
+    if (loadingPrevRef.current) return
+    const first = videos[0]
+    if (!first?.recorded_at) return
+    loadingPrevRef.current = true
+    try {
+      const swiper = swiperRef.current as {
+        activeIndex: number
+        slideTo: (index: number, speed?: number) => void
+      }
+      const more = await fetchVideosBefore(first.recorded_at, 5)
+      const fresh = more.filter((v) => !idsRef.current.has(v.id))
+      if (fresh.length) {
+        const active = swiper.activeIndex ?? 0
+        fresh.forEach((v) => idsRef.current.add(v.id))
+        setVideos((prev) => [...fresh, ...prev])
+        requestAnimationFrame(() => {
+          swiper.slideTo(active + fresh.length, 0)
+        })
+      }
+    } finally {
+      loadingPrevRef.current = false
+    }
+  }
+
+  const handleSlideChange = (sw: { activeIndex: number }) => {
+    const idx = sw.activeIndex
+    setPlayForIndex(idx)
+
+    // Met à jour l’URL sans navigation
+    const currentId = videos[idx]?.id
+    if (currentId) {
+      window.history.replaceState(null, '', `/stories/${currentId}`)
+    }
+
+    // Triggers simples (tampon 2)
+    if (idx >= videos.length - 2) appendAfter()
+    if (idx <= 1) prependBefore()
+  }
+
+  if (!videos.length) {
+    return <div className="p-6 text-white">Aucune vidéo</div>
   }
 
   return (
@@ -57,15 +140,18 @@ export default function StoriesFeed({ data, initialId }: Props) {
         modules={[Mousewheel]}
         direction="vertical"
         slidesPerView={1}
-        initialSlide={initialIndex}
         mousewheel={{ forceToAxis: true, sensitivity: 1 }}
         resistanceRatio={0.85}
-        onSlideChange={handleSlideChange}
+        initialSlide={initialIndex}
+        onSwiper={(sw) => {
+          swiperRef.current = sw
+        }}
         onAfterInit={(sw) => setPlayForIndex(sw.activeIndex)}
+        onSlideChange={handleSlideChange}
         className="h-full"
       >
-        {data.map((it, i) => {
-          const nextIndex = Math.min(i + 1, data.length - 1)
+        {videos.map((it, i) => {
+          const nextIndex = Math.min(i + 1, videos.length - 1)
           return (
             <SwiperSlide key={it.id}>
               <div className="relative h-full w-full">
@@ -84,18 +170,22 @@ export default function StoriesFeed({ data, initialId }: Props) {
                   loop
                 />
                 <div className="absolute left-3 top-3 rounded bg-black/55 px-2 py-1 text-xs text-white">
-                  {new Date(it.recorded_at).toLocaleString('fr-FR', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {it.recorded_at
+                    ? new Date(it.recorded_at).toLocaleString('fr-FR', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : '—'}
                   /{it.position}
                 </div>
-                <div className="absolute bottom-3 left-3 rounded bg-black/55 px-2 py-1 text-xs text-white">
-                  {it.lat.toFixed(4)} / {it.lng.toFixed(4)}
-                </div>
+                {it.lat != null && it.lng != null && (
+                  <div className="absolute bottom-3 left-3 rounded bg-black/55 px-2 py-1 text-xs text-white">
+                    {it.lat.toFixed(4)} / {it.lng.toFixed(4)}
+                  </div>
+                )}
               </div>
             </SwiperSlide>
           )

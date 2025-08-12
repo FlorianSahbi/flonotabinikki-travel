@@ -139,7 +139,7 @@ export type Database = {
     }
     Functions: {
       get_context_videos: {
-        Args: { target_id: string }
+        Args: { target_id: string } | { target_id: string; range_size: number }
         Returns: {
           id: string
           bucket_url: string
@@ -151,6 +151,42 @@ export type Database = {
       }
       get_random_videos: {
         Args: Record<PropertyKey, never>
+        Returns: {
+          bucket_path: string
+          bucket_url: string
+          cluster_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_published: boolean | null
+          lat: number
+          lng: number
+          position: number
+          recorded_at: string
+          subtitle: string | null
+          title: string | null
+        }[]
+      }
+      get_videos_after: {
+        Args: { ref_time: string; lim: number }
+        Returns: {
+          bucket_path: string
+          bucket_url: string
+          cluster_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_published: boolean | null
+          lat: number
+          lng: number
+          position: number
+          recorded_at: string
+          subtitle: string | null
+          title: string | null
+        }[]
+      }
+      get_videos_before: {
+        Args: { ref_time: string; lim: number }
         Returns: {
           bucket_path: string
           bucket_url: string
