@@ -25,9 +25,9 @@ export default function ExploreMap({ points }: Props) {
       container: containerRef.current,
       style: 'mapbox://styles/mapbox/standard',
       center: [138.0, 37.0],
-      zoom: 4.2,
-      pitch: 40,
-      bearing: -10,
+      zoom: 4,
+      pitch: 0,
+      bearing: 0,
       attributionControl: false,
     })
     mapRef.current = map
