@@ -138,6 +138,78 @@ export type Database = {
       }
     }
     Functions: {
+      feed__cluster_items_after: {
+        Args: { lim: number; ref_time: string; skip_cluster_id?: string }
+        Returns: {
+          bucket_url: string
+          description: string
+          id: string
+          kind: string
+          lat: number
+          lng: number
+          position: number
+          preview: string
+          recorded_at: string
+          title: string
+        }[]
+      }
+      feed__cluster_items_before: {
+        Args: { lim: number; ref_time: string; skip_cluster_id?: string }
+        Returns: {
+          bucket_url: string
+          description: string
+          id: string
+          kind: string
+          lat: number
+          lng: number
+          position: number
+          preview: string
+          recorded_at: string
+          title: string
+        }[]
+      }
+      feed__standalone_videos_after: {
+        Args: { lim: number; ref_time: string }
+        Returns: {
+          bucket_url: string
+          description: string
+          id: string
+          kind: string
+          lat: number
+          lng: number
+          position: number
+          preview: string
+          recorded_at: string
+          title: string
+        }[]
+      }
+      feed__standalone_videos_before: {
+        Args: { lim: number; ref_time: string }
+        Returns: {
+          bucket_url: string
+          description: string
+          id: string
+          kind: string
+          lat: number
+          lng: number
+          position: number
+          preview: string
+          recorded_at: string
+          title: string
+        }[]
+      }
+      feed_get_context_items: {
+        Args: { range_size?: number; target_id: string }
+        Returns: Json
+      }
+      feed_get_items_after: {
+        Args: { lim?: number; ref_time: string; skip_cluster_id?: string }
+        Returns: Json
+      }
+      feed_get_items_before: {
+        Args: { lim?: number; ref_time: string; skip_cluster_id?: string }
+        Returns: Json
+      }
       get_context_videos: {
         Args: { range_size: number; target_id: string } | { target_id: string }
         Returns: {
@@ -208,7 +280,34 @@ export type Database = {
       [_ in never]: never
     }
     CompositeTypes: {
-      [_ in never]: never
+      feed_item: {
+        bucket_url: string | null
+        description: string | null
+        id: string | null
+        kind: string | null
+        lat: number | null
+        lng: number | null
+        position: number | null
+        preview: string | null
+        sort_at: string | null
+        title: string | null
+        video_cluster_id: string | null
+        video_ids: string[] | null
+      }
+      feed_item_v2: {
+        bucket_url: string | null
+        description: string | null
+        id: string | null
+        kind: string | null
+        lat: number | null
+        lng: number | null
+        position: number | null
+        preview: string | null
+        sort_at: string | null
+        title: string | null
+        video_cluster_id: string | null
+        video_ids: string[] | null
+      }
     }
   }
 }

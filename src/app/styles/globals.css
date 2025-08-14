@@ -43,3 +43,18 @@ body {
     transition: none !important;
   }
 }
+
+/* View Transitions: désactiver le cross-fade global pour garder seulement la transition des éléments partagés */
+@layer base {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
+
+/* Utilité Tailwind pour nommer l’élément partagé via une variable CSS */
+@layer utilities {
+  .vt-shared {
+    view-transition-name: var(--vt-name);
+  }
+}
