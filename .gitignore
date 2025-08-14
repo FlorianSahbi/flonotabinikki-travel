@@ -66,3 +66,6 @@ Icon?
 # Logs
 logs
 *.log
+
+# Contracts
+contrat.md

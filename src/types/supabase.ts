@@ -8,7 +8,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
@@ -23,10 +23,10 @@ export type Database = {
     Functions: {
       graphql: {
         Args: {
+          extensions?: Json
           operationName?: string
           query?: string
           variables?: Json
-          extensions?: Json
         }
         Returns: Json
       }
@@ -139,14 +139,14 @@ export type Database = {
     }
     Functions: {
       get_context_videos: {
-        Args: { target_id: string } | { target_id: string; range_size: number }
+        Args: { range_size: number; target_id: string } | { target_id: string }
         Returns: {
-          id: string
           bucket_url: string
-          recorded_at: string
+          id: string
           lat: number
           lng: number
           position: number
+          recorded_at: string
         }[]
       }
       get_random_videos: {
@@ -168,7 +168,7 @@ export type Database = {
         }[]
       }
       get_videos_after: {
-        Args: { ref_time: string; lim: number }
+        Args: { lim: number; ref_time: string }
         Returns: {
           bucket_path: string
           bucket_url: string
@@ -186,7 +186,7 @@ export type Database = {
         }[]
       }
       get_videos_before: {
-        Args: { ref_time: string; lim: number }
+        Args: { lim: number; ref_time: string }
         Returns: {
           bucket_path: string
           bucket_url: string
