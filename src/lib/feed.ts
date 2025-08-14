@@ -1,35 +1,20 @@
 import { supabase } from '@/lib/supabaseClient'
 
-export type FeedVideoItem = {
-  kind: 'video'
+// Type harmonisé pour tout le feed
+export type FeedItem = {
   id: string
-  recorded_at: string
-  lat: number | null
-  lng: number | null
-  position: number | null
-  bucket_url: string
-  title?: null
-  description?: null
-  preview?: null
-}
-
-export type FeedClusterItem = {
-  kind: 'cluster'
-  id: string
-  recorded_at: string
-  lat: number | null
-  lng: number | null
-  position: number | null
+  lat: number
+  lng: number
+  kind: 'cluster' | 'video'
   title: string | null
-  description: string | null
   preview: string | null
-  bucket_url?: null
+  position: number
+  bucket_url: string | null
+  description: string | null
+  recorded_at: string
 }
-
-export type FeedItem = FeedVideoItem | FeedClusterItem
 
 // Fallback helpers si les RPC "new" ne sont pas encore présents.
-// On se rabat sur les RPC historiques et on retourne des items "video".
 async function fallbackGetContextVideos(
   targetId: string,
   rangeSize = 3
@@ -51,9 +36,9 @@ async function fallbackGetContextVideos(
     kind: 'video',
     id: v.id,
     recorded_at: v.recorded_at,
-    lat: v.lat,
-    lng: v.lng,
-    position: v.position,
+    lat: v.lat ?? 0,
+    lng: v.lng ?? 0,
+    position: v.position ?? 0,
     bucket_url: v.bucket_url,
     title: null,
     description: null,
@@ -82,9 +67,9 @@ async function fallbackGetVideosAfter(
     kind: 'video',
     id: v.id,
     recorded_at: v.recorded_at,
-    lat: v.lat,
-    lng: v.lng,
-    position: v.position,
+    lat: v.lat ?? 0,
+    lng: v.lng ?? 0,
+    position: v.position ?? 0,
     bucket_url: v.bucket_url,
     title: null,
     description: null,
@@ -115,9 +100,9 @@ async function fallbackGetVideosBefore(
     kind: 'video',
     id: v.id,
     recorded_at: v.recorded_at,
-    lat: v.lat,
-    lng: v.lng,
-    position: v.position,
+    lat: v.lat ?? 0,
+    lng: v.lng ?? 0,
+    position: v.position ?? 0,
     bucket_url: v.bucket_url,
     title: null,
     description: null,
@@ -134,7 +119,6 @@ export async function feedGetContextItems(
     range_size: rangeSize,
   })
   if (error) {
-    // fallback si la fonction n'existe pas encore sur la DB
     if (String(error.message || '').includes('Could not find the function')) {
       return fallbackGetContextVideos(targetId, rangeSize)
     }
@@ -148,11 +132,15 @@ export async function feedGetItemsAfter(
   limit = 5,
   skipClusterId?: string
 ): Promise<FeedItem[]> {
-  const { data, error } = await supabase.rpc('feed_get_items_after', {
+  const params: { ref_time: string; lim: number; skip_cluster_id?: string } = {
     ref_time: refRecordedAt,
     lim: limit,
-    skip_cluster_id: skipClusterId ?? null,
-  })
+  }
+  if (skipClusterId) {
+    params.skip_cluster_id = skipClusterId
+  }
+
+  const { data, error } = await supabase.rpc('feed_get_items_after', params)
   if (error) {
     if (String(error.message || '').includes('Could not find the function')) {
       return fallbackGetVideosAfter(refRecordedAt, limit)
@@ -167,11 +155,15 @@ export async function feedGetItemsBefore(
   limit = 5,
   skipClusterId?: string
 ): Promise<FeedItem[]> {
-  const { data, error } = await supabase.rpc('feed_get_items_before', {
+  const params: { ref_time: string; lim: number; skip_cluster_id?: string } = {
     ref_time: refRecordedAt,
     lim: limit,
-    skip_cluster_id: skipClusterId ?? null,
-  })
+  }
+  if (skipClusterId) {
+    params.skip_cluster_id = skipClusterId
+  }
+
+  const { data, error } = await supabase.rpc('feed_get_items_before', params)
   if (error) {
     if (String(error.message || '').includes('Could not find the function')) {
       return fallbackGetVideosBefore(refRecordedAt, limit)

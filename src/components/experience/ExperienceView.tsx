@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ChevronDown } from 'lucide-react'
+import type { Tables } from '../../types/supabase'
 import {
   motion,
   useScroll,
@@ -10,18 +11,11 @@ import {
   AnimatePresence,
 } from 'framer-motion'
 
-type EventVideo = { id: string; src: string }
-type EventData = {
-  type: string
-  title: string
-  description: string
-  longDescription: string
-  startDate: string
-  endDate: string
-  videos: EventVideo[]
-}
+type ClusterRow = Tables<'clusters'>
+type VideoRow = Tables<'videos'>
+type ClusterWithVideos = ClusterRow & { videos: VideoRow[] }
 
-export default function ExperienceView({ event }: { event: EventData }) {
+export default function ExperienceView({ data }: { data: ClusterWithVideos }) {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0)
   const [showScrollIndicator, setShowScrollIndicator] = useState(true)
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
@@ -41,14 +35,14 @@ export default function ExperienceView({ event }: { event: EventData }) {
   }, [])
 
   useEffect(() => {
-    if (event.videos.length > 1) {
+    if (data.videos.length > 1) {
       const it = setInterval(
-        () => setCurrentVideoIndex((i) => (i + 1) % event.videos.length),
+        () => setCurrentVideoIndex((i) => (i + 1) % data.videos.length),
         6000
       )
       return () => clearInterval(it)
     }
-  }, [event.videos.length])
+  }, [data.videos.length])
 
   useEffect(() => {
     videoRefs.current.forEach((el, i) => {
@@ -63,19 +57,11 @@ export default function ExperienceView({ event }: { event: EventData }) {
     })
   }, [currentVideoIndex])
 
-  const fmt = (d: string) =>
-    new Date(d).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    })
-
   return (
     <div className="relative min-h-screen">
-      {/* Fond vidéo couvre toute la page */}
       <motion.div className="fixed inset-0 z-0 pointer-events-none">
         <motion.div className="absolute inset-0 overflow-hidden">
-          {event.videos.map((v, i) => {
+          {data.videos.map((v, i) => {
             const active = i === currentVideoIndex
             return (
               <video
@@ -88,7 +74,7 @@ export default function ExperienceView({ event }: { event: EventData }) {
                   opacity: active ? 1 : 0,
                   transition: 'opacity 1.2s ease',
                 }}
-                src={v.src}
+                src={v.bucket_url}
                 muted
                 loop
                 playsInline
@@ -130,10 +116,10 @@ export default function ExperienceView({ event }: { event: EventData }) {
           className="mb-6"
         >
           <div className="mb-2 text-sm uppercase tracking-widest text-amber-400">
-            {event.type}
+            Experience
           </div>
           <div className="text-sm text-white/70">
-            {fmt(event.startDate)} — {fmt(event.endDate)}
+            16/07/2024 16:48 — 17/07/2024 20:02
           </div>
         </motion.div>
 
@@ -144,7 +130,7 @@ export default function ExperienceView({ event }: { event: EventData }) {
           style={{ y: titleY, opacity: titleOpacity }}
           className="max-w-4xl bg-gradient-to-b from-white to-white/80 bg-clip-text text-4xl font-extrabold leading-tight text-transparent drop-shadow-lg md:text-6xl"
         >
-          {event.title}
+          {data.name}
         </motion.h1>
 
         <motion.p
@@ -154,7 +140,7 @@ export default function ExperienceView({ event }: { event: EventData }) {
           style={{ y: titleY, opacity: titleOpacity }}
           className="mt-4 max-w-2xl text-lg text-white/90 drop-shadow-lg"
         >
-          {event.description}
+          {data.description}
         </motion.p>
 
         <AnimatePresence>
@@ -178,9 +164,8 @@ export default function ExperienceView({ event }: { event: EventData }) {
           L&apos;histoire derrière l&apos;événement
         </h2>
         <div className="relative max-w-3xl">
-          <div className="absolute inset-0 rounded-lg bg-black/30 backdrop-blur-md -z-10" />
           <p className="relative text-white/90 drop-shadow-lg">
-            {event.longDescription}
+            long description
           </p>
         </div>
       </div>

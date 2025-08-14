@@ -58,3 +58,11 @@ body {
     view-transition-name: var(--vt-name);
   }
 }
+
+/* View Transitions: désactive le cross-fade global pour garder seulement la transition des éléments partagés */
+@layer base {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}

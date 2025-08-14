@@ -7,8 +7,7 @@ import 'swiper/css'
 import MiniMapOverlay, {
   MiniMapOverlayRef,
 } from '@/components/stories/MiniMapOverlay'
-import { useRouter } from 'next/navigation'
-import type { FeedItem, FeedClusterItem } from '@/lib/feed'
+import type { FeedItem } from '@/lib/feed'
 import { feedGetItemsAfter, feedGetItemsBefore } from '@/lib/feed'
 import ClusterExperienceSlide from '@/components/stories/ClusterExperienceSlide'
 
@@ -19,7 +18,6 @@ export default function StoriesFeed({
   initialId: string
   initialItems: FeedItem[]
 }) {
-  const router = useRouter()
   const swiperRef = useRef<unknown>(null)
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
   const miniMapRef = useRef<MiniMapOverlayRef>(null)
@@ -70,7 +68,7 @@ export default function StoriesFeed({
           miniMapRef.current?.updatePoints(
             updated
               .filter((x) => x.lat != null && x.lng != null)
-              .map((x) => ({ id: x.id, lat: x.lat!, lng: x.lng! }))
+              .map((x) => ({ id: x.id, lat: x.lat, lng: x.lng }))
           )
           return updated
         })
@@ -102,7 +100,7 @@ export default function StoriesFeed({
           miniMapRef.current?.updatePoints(
             updated
               .filter((x) => x.lat != null && x.lng != null)
-              .map((x) => ({ id: x.id, lat: x.lat!, lng: x.lng! }))
+              .map((x) => ({ id: x.id, lat: x.lat, lng: x.lng }))
           )
           return updated
         })
@@ -139,17 +137,17 @@ export default function StoriesFeed({
 
   const initialPoints = (items ?? [])
     .filter((v) => v.lat != null && v.lng != null)
-    .map((v) => ({ id: v.id, lat: v.lat!, lng: v.lng! }))
+    .map((v) => ({ id: v.id, lat: v.lat, lng: v.lng }))
+
+  const centerLng = items[initialIndex]?.lng ?? 0
+  const centerLat = items[initialIndex]?.lat ?? 0
 
   return (
     <div className="h-[100dvh] w-screen bg-black">
       <MiniMapOverlay
         ref={miniMapRef}
         initialPoints={initialPoints}
-        center={[
-          (items[initialIndex] as any)?.lng ?? 0,
-          (items[initialIndex] as any)?.lat ?? 0,
-        ]}
+        center={[centerLng, centerLat]}
       />
       <Swiper
         modules={[Mousewheel]}
@@ -195,7 +193,7 @@ export default function StoriesFeed({
                         videoRefs.current[i] = el
                       }}
                       className="absolute inset-0 h-full w-full object-cover"
-                      src={(it as any).bucket_url}
+                      src={it.bucket_url ?? ''}
                       playsInline
                       muted
                       autoPlay={i === initialIndex}
@@ -218,8 +216,8 @@ export default function StoriesFeed({
                   </>
                 ) : (
                   <ClusterExperienceSlide
-                    item={it as FeedClusterItem}
-                    onClick={() => router.push(`/experience/${it.id}`)}
+                    item={it}
+                    href={`/experience/${it.id}`}
                   />
                 )}
               </div>
