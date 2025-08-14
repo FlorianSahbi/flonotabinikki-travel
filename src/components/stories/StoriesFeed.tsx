@@ -4,66 +4,37 @@ import { useMemo, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel } from 'swiper/modules'
 import 'swiper/css'
-import { supabase } from '@/lib/supabaseClient'
-import type { Tables } from '@/types/supabase'
 import MiniMapOverlay, {
   MiniMapOverlayRef,
 } from '@/components/stories/MiniMapOverlay'
-import { useRouter } from 'next/navigation'
-
-type VideoLite = Pick<
-  Tables<'videos'>,
-  'id' | 'bucket_url' | 'recorded_at' | 'lat' | 'lng' | 'position'
->
-
-async function fetchVideosAfter(
-  refRecordedAt: string,
-  limit = 5
-): Promise<VideoLite[]> {
-  const { data, error } = await supabase.rpc('get_videos_after', {
-    ref_time: refRecordedAt,
-    lim: limit,
-  })
-  if (error) throw new Error(error.message)
-  return (data ?? []) as VideoLite[]
-}
-
-async function fetchVideosBefore(
-  refRecordedAt: string,
-  limit = 5
-): Promise<VideoLite[]> {
-  const { data, error } = await supabase.rpc('get_videos_before', {
-    ref_time: refRecordedAt,
-    lim: limit,
-  })
-  if (error) throw new Error(error.message)
-  return (data ?? []).reverse() as VideoLite[]
-}
+import type { FeedItem } from '@/lib/feed'
+import { feedGetItemsAfter, feedGetItemsBefore } from '@/lib/feed'
+import ClusterExperienceSlide from '@/components/stories/ClusterExperienceSlide'
 
 export default function StoriesFeed({
   initialId,
-  initialVideos,
+  initialItems,
 }: {
   initialId: string
-  initialVideos: VideoLite[]
+  initialItems: FeedItem[]
 }) {
-  const router = useRouter()
   const swiperRef = useRef<unknown>(null)
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
-  const [videos, setVideos] = useState<VideoLite[]>(initialVideos)
-  const idsRef = useRef(new Set(initialVideos.map((v) => v.id))) // anti-doublons
+  const miniMapRef = useRef<MiniMapOverlayRef>(null)
+
+  const [items, setItems] = useState<FeedItem[]>(initialItems)
+  const idsRef = useRef(new Set(initialItems.map((v) => v.id)))
   const loadingNextRef = useRef(false)
   const loadingPrevRef = useRef(false)
   const activeIndexRef = useRef(0)
-  const miniMapRef = useRef<MiniMapOverlayRef>(null)
 
   const initialIndex = useMemo(
     () =>
       Math.max(
-        videos.findIndex((v) => v.id === initialId),
+        items.findIndex((v) => v.id === initialId),
         0
       ),
-    [videos, initialId]
+    [items, initialId]
   )
 
   const setPlayForIndex = (activeIndex: number) => {
@@ -81,18 +52,24 @@ export default function StoriesFeed({
   }
 
   const appendAfter = async () => {
-    if (loadingNextRef.current) return
-    const last = videos[videos.length - 1]
-    if (!last?.recorded_at) return
+    if (loadingNextRef.current || !items.length) return
+    const last = items[items.length - 1]
+    const lastTime = last?.recorded_at
+    if (!lastTime) return
     loadingNextRef.current = true
     try {
-      const more = await fetchVideosAfter(last.recorded_at, 5)
+      const skipClusterId = last?.kind === 'cluster' ? last.id : undefined
+      const more = await feedGetItemsAfter(lastTime, 5, skipClusterId)
       const fresh = more.filter((v) => !idsRef.current.has(v.id))
       if (fresh.length) {
         fresh.forEach((v) => idsRef.current.add(v.id))
-        setVideos((prev) => {
+        setItems((prev) => {
           const updated = [...prev, ...fresh]
-          miniMapRef.current?.updatePoints(updated) // mise à jour map
+          miniMapRef.current?.updatePoints(
+            updated
+              .filter((x) => x.lat != null && x.lng != null)
+              .map((x) => ({ id: x.id, lat: x.lat, lng: x.lng }))
+          )
           return updated
         })
       }
@@ -102,23 +79,29 @@ export default function StoriesFeed({
   }
 
   const prependBefore = async () => {
-    if (loadingPrevRef.current) return
-    const first = videos[0]
-    if (!first?.recorded_at) return
+    if (loadingPrevRef.current || !items.length) return
+    const first = items[0]
+    const firstTime = first?.recorded_at
+    if (!firstTime) return
     loadingPrevRef.current = true
     try {
       const swiper = swiperRef.current as {
         activeIndex: number
         slideTo: (index: number, speed?: number) => void
       }
-      const more = await fetchVideosBefore(first.recorded_at, 5)
+      const skipClusterId = first?.kind === 'cluster' ? first.id : undefined
+      const more = await feedGetItemsBefore(firstTime, 5, skipClusterId)
       const fresh = more.filter((v) => !idsRef.current.has(v.id))
       if (fresh.length) {
-        const active = swiper.activeIndex ?? 0
+        const active = swiper?.activeIndex ?? 0
         fresh.forEach((v) => idsRef.current.add(v.id))
-        setVideos((prev) => {
+        setItems((prev) => {
           const updated = [...fresh, ...prev]
-          miniMapRef.current?.updatePoints(updated) // mise à jour map
+          miniMapRef.current?.updatePoints(
+            updated
+              .filter((x) => x.lat != null && x.lng != null)
+              .map((x) => ({ id: x.id, lat: x.lat, lng: x.lng }))
+          )
           return updated
         })
         requestAnimationFrame(() => {
@@ -135,43 +118,36 @@ export default function StoriesFeed({
     activeIndexRef.current = idx
     setPlayForIndex(idx)
 
-    const currentId = videos[idx]?.id
-    if (currentId) {
-      window.history.replaceState(null, '', `/stories/${currentId}`)
+    const current = items[idx]
+    if (current?.id) {
+      window.history.replaceState(null, '', `/stories/${current.id}`)
     }
 
-    const video = videos[idx]
-    if (miniMapRef.current && video?.lat != null && video?.lng != null) {
-      miniMapRef.current.flyTo(video.lng, video.lat)
+    if (miniMapRef.current && current?.lat != null && current?.lng != null) {
+      miniMapRef.current.flyTo(current.lng, current.lat)
     }
 
-    if (idx >= videos.length - 2) appendAfter()
+    if (idx >= items.length - 2) appendAfter()
     if (idx <= 1) prependBefore()
   }
 
-  if (!videos.length) {
+  if (!items.length) {
     return <div className="p-6 text-white">Aucune vidéo</div>
   }
+
+  const initialPoints = (items ?? [])
+    .filter((v) => v.lat != null && v.lng != null)
+    .map((v) => ({ id: v.id, lat: v.lat, lng: v.lng }))
+
+  const centerLng = items[initialIndex]?.lng ?? 0
+  const centerLat = items[initialIndex]?.lat ?? 0
 
   return (
     <div className="h-[100dvh] w-screen bg-black">
       <MiniMapOverlay
         ref={miniMapRef}
-        initialPoints={initialVideos.map((v) => ({
-          id: v.id,
-          lat: v.lat!,
-          lng: v.lng!,
-        }))}
-        center={[
-          videos[initialIndex]?.lng ?? 0,
-          videos[initialIndex]?.lat ?? 0,
-        ]}
-        onClick={() => {
-          const current = videos[activeIndexRef.current]
-          if (current) {
-            router.push(`/explore?focus=${current.id}`)
-          }
-        }}
+        initialPoints={initialPoints}
+        center={[centerLng, centerLat]}
       />
       <Swiper
         modules={[Mousewheel]}
@@ -195,41 +171,54 @@ export default function StoriesFeed({
         allowTouchMove={true}
         speed={400}
       >
-        {videos.map((it, i) => {
-          const nextIndex = Math.min(i + 1, videos.length - 1)
+        {items.map((it, i) => {
+          const nextIndex = Math.min(i + 1, items.length - 1)
+          const dateStr = it.recorded_at
+            ? new Date(it.recorded_at).toLocaleString('fr-FR', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : '—'
+
           return (
             <SwiperSlide key={it.id}>
               <div className="relative h-full w-full">
-                <video
-                  ref={(el) => {
-                    videoRefs.current[i] = el
-                  }}
-                  className="absolute inset-0 h-full w-full object-cover"
-                  src={it.bucket_url}
-                  playsInline
-                  muted
-                  autoPlay={i === initialIndex}
-                  preload={
-                    i === initialIndex || i === nextIndex ? 'auto' : 'metadata'
-                  }
-                  loop
-                />
-                <div className="absolute left-3 top-3 rounded bg-black/55 px-2 py-1 text-xs text-white">
-                  {it.recorded_at
-                    ? new Date(it.recorded_at).toLocaleString('fr-FR', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : '—'}
-                  /{it.position}
-                </div>
-                {it.lat != null && it.lng != null && (
-                  <div className="absolute bottom-3 left-3 rounded bg-black/55 px-2 py-1 text-xs text-white">
-                    {it.lat.toFixed(4)} / {it.lng.toFixed(4)}
-                  </div>
+                {it.kind === 'video' ? (
+                  <>
+                    <video
+                      ref={(el) => {
+                        videoRefs.current[i] = el
+                      }}
+                      className="absolute inset-0 h-full w-full object-cover"
+                      src={it.bucket_url ?? ''}
+                      playsInline
+                      muted
+                      autoPlay={i === initialIndex}
+                      preload={
+                        i === initialIndex || i === nextIndex
+                          ? 'auto'
+                          : 'metadata'
+                      }
+                      loop
+                    />
+                    <div className="absolute left-3 top-3 rounded bg-black/55 px-2 py-1 text-xs text-white">
+                      {dateStr}
+                    </div>
+                    {it.lat != null && it.lng != null && (
+                      <div className="absolute bottom-3 left-3 rounded bg-black/55 px-2 py-1 text-xs text-white">
+                        {Number(it.lat).toFixed(4)} /{' '}
+                        {Number(it.lng).toFixed(4)}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <ClusterExperienceSlide
+                    item={it}
+                    href={`/experience/${it.id}`}
+                  />
                 )}
               </div>
             </SwiperSlide>
