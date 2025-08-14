@@ -30,7 +30,7 @@ export default async function Page() {
     <HomeHero
       items={items}
       title="PVT 2024 Un an dans tout le Japon"
-      cta={{ label: 'Entrer', href: '/fr/map' }}
+      cta={{ label: 'Entrer', href: '/explore' }}
     />
   )
 }
