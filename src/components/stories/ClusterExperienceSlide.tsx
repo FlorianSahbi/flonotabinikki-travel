@@ -70,7 +70,7 @@ export default function ClusterExperienceSlide({
     ;(async () => {
       const { data, error } = await supabase
         .from('videos')
-        .select('bucket_url')
+        .select('*')
         .eq('cluster_id', item.id)
         .order('recorded_at', { ascending: true })
         .limit(LIMIT)

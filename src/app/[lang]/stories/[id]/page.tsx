@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabaseClient'
 import StoriesFeed from '@/components/stories/StoriesFeed'
-import type { FeedItem } from '@/lib/feed'
+import { FeedItem } from '@/lib/feed'
 
 export default async function StoriesPage({
   params,

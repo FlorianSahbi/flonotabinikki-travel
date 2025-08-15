@@ -7,8 +7,7 @@ import 'swiper/css'
 import MiniMapOverlay, {
   MiniMapOverlayRef,
 } from '@/components/stories/MiniMapOverlay'
-import type { FeedItem } from '@/lib/feed'
-import { feedGetItemsAfter, feedGetItemsBefore } from '@/lib/feed'
+import { FeedItem, feedGetItemsAfter, feedGetItemsBefore } from '@/lib/feed'
 import ClusterExperienceSlide from '@/components/stories/ClusterExperienceSlide'
 
 export default function StoriesFeed({
