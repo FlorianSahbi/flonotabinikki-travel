@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo } from 'react'
+import BackgroundVideoCarousel from '../stories/BackgroundVideoCarousel'
 
 type RawItem = {
   id: string
@@ -37,10 +38,8 @@ export default function HomeHero({
         .filter((v) => v.id && v.videoUrl),
     [items]
   )
-
-  const [active, setActive] = useState(0)
-  const next = (active + 1) % (data.length || 1)
-
+  const sources = data.map((v) => v.videoUrl)
+  const next = (0 + 1) % (data.length || 1)
   const titleClean = useMemo(
     () =>
       String(title)
@@ -49,27 +48,6 @@ export default function HomeHero({
         .trim(),
     [title]
   )
-
-  const refs = useRef<(HTMLVideoElement | null)[]>([])
-
-  // avance toutes les slideMs
-  useEffect(() => {
-    if (data.length <= 1) return
-    const t = setInterval(
-      () => setActive((i) => (i + 1) % data.length),
-      slideMs
-    )
-    return () => clearInterval(t)
-  }, [data.length, slideMs])
-
-  // play/pause minimal
-  useEffect(() => {
-    refs.current.forEach((el, i) => {
-      if (!el) return
-      if (i === active) el.play?.().catch(() => {})
-      else el.pause?.()
-    })
-  }, [active])
 
   if (!data.length) {
     return (
@@ -81,35 +59,14 @@ export default function HomeHero({
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-black">
-      <link rel="preload" as="video" href={data[next]?.videoUrl} />
-
-      <div className="pointer-events-none absolute inset-0">
-        {data.map((v, i) => {
-          const on = i === active
-          return (
-            <video
-              key={v.id}
-              ref={(el) => {
-                if (el) refs.current[i] = el
-              }}
-              className="absolute inset-0 h-full w-full object-cover"
-              style={{
-                opacity: on ? 1 : 0,
-                filter: on ? 'blur(0px)' : `blur(${blurPx}px)`,
-                transition: `opacity ${fadeMs}ms ease, filter ${fadeMs}ms ease`,
-              }}
-              src={v.videoUrl}
-              muted
-              playsInline
-              loop
-              preload={on || i === next ? 'auto' : 'metadata'}
-              autoPlay={on}
-            />
-          )
-        })}
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/60 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/65 to-transparent" />
-      </div>
+      <BackgroundVideoCarousel
+        sources={sources}
+        intervalMs={slideMs}
+        transitionMs={fadeMs}
+        blurRange={[0, blurPx]}
+        overlay
+        className="pointer-events-none absolute inset-0"
+      />
 
       {/* barres */}
       <div className="absolute inset-x-4 top-4 z-20 flex gap-2">
@@ -119,18 +76,12 @@ export default function HomeHero({
             className="h-1 flex-1 overflow-hidden rounded bg-white/25"
           >
             <div
-              key={
-                i === active
-                  ? `run-${active}`
-                  : `idle-${i < active ? 'full' : 'empty'}`
-              }
+              key={i === 0 ? `run-0` : `idle-${i < 0 ? 'full' : 'empty'}`}
               className="h-full bg-white"
               style={{
-                width: i < active ? '100%' : i === active ? '0%' : '0%',
+                width: i < 0 ? '100%' : i === 0 ? '0%' : '0%',
                 animation:
-                  i === active
-                    ? `fill ${slideMs}ms linear forwards`
-                    : undefined,
+                  i === 0 ? `fill ${slideMs}ms linear forwards` : undefined,
               }}
             />
           </div>
@@ -174,14 +125,14 @@ export default function HomeHero({
             <path d="M12 2c-4.1 0-7.25 3.18-7.25 7.2 0 5.4 6.21 11.85 6.48 12.12.22.22.36.33.77.33s.55-.11.77-.33c.27-.27 6.48-6.72 6.48-12.12C19.25 5.18 16.1 2 12 2zm0 9.8a2.6 2.6 0 110-5.2 2.6 2.6 0 010 5.2z" />
           </svg>
           <span
-            key={active}
+            key={0}
             className="max-w-[90vw] truncate"
             style={{
               animation: 'placeIn 200ms ease',
               willChange: 'opacity, transform',
             }}
           >
-            {data[active]?.placeLabel || 'Japon'}
+            {data[0]?.placeLabel || 'Japon'}
           </span>
         </div>
       </div>

@@ -41,12 +41,5 @@ export default async function ExperienceByIdPage({
     )
   }
 
-  const vtStyle: React.CSSProperties = {}
-  ;(vtStyle as Record<string, unknown>)['viewTransitionName'] = `cluster-${id}`
-
-  return (
-    <div className="min-h-[100dvh] w-full bg-black">
-      <ExperienceView data={{ ...cluster, videos }} />
-    </div>
-  )
+  return <ExperienceView data={{ ...cluster, videos }} />
 }
