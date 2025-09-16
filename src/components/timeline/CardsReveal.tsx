@@ -1,4 +1,3 @@
-// src/components/timeline/CardsReveal.tsx
 'use client'
 
 import { useMemo, useRef } from 'react'
@@ -10,12 +9,11 @@ import {
   useTransform,
   useMotionValue,
 } from 'framer-motion'
+import Video from '@/components/media/Video'
 
 type Item = {
-  kind?: 'image' | 'video'
   src: string
   poster?: string
-  alt?: string
 }
 
 type Props = {
@@ -125,28 +123,23 @@ export default function CardsReveal({
               paddingRight: `${rowPadVW}vw`,
             }}
           >
-            {items.map((media) => {
-              return (
-                <figure
-                  key={`${media.src}`}
-                  className="relative aspect-[3/4] shrink-0 overflow-visible"
-                  style={{ width: `${cardVW}vw`, perspective: 1000 }}
-                >
-                  <div className="h-full w-full rounded-2xl overflow-hidden bg-black/60 ring-1 ring-white/10 shadow-2xl">
-                    <video
-                      src={media.src}
-                      poster={media.poster}
-                      className="h-full w-full object-cover"
-                      preload="metadata"
-                      autoPlay
-                      muted
-                      playsInline
-                      loop
-                    />
-                  </div>
-                </figure>
-              )
-            })}
+            {items.map((media) => (
+              <figure
+                key={media.src}
+                className="relative aspect-[3/4] shrink-0 overflow-visible"
+                style={{ width: `${cardVW}vw`, perspective: 1000 }}
+              >
+                <div className="h-full w-full rounded-2xl overflow-hidden bg-black/60 ring-1 ring-white/10 shadow-2xl">
+                  <Video
+                    className="h-full w-full object-cover"
+                    src={media.src}
+                    poster={media.poster}
+                    playThreshold={0}
+                    pauseThreshold={0}
+                  />
+                </div>
+              </figure>
+            ))}
           </motion.div>
         </div>
       </div>

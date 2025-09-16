@@ -23,7 +23,7 @@ function slugify(s: string) {
 }
 
 export default function TimelineOverviewPage() {
-  const { easeTo, jumpTo, goToDetail } = useTimelineShell()
+  const { easeTo, jumpTo, flyTo, goToDetail } = useTimelineShell()
 
   const router = useRouter()
   const pathname = usePathname()
@@ -88,8 +88,7 @@ export default function TimelineOverviewPage() {
   }
 
   const handleExitTop = () => {
-    setQueryParam('city', null)
-    jumpTo(JAPAN_OVERVIEW)
+    flyTo(JAPAN_OVERVIEW)
   }
 
   const mediaItems = timelineEvents.slice(0, 6).map((evt) => {
