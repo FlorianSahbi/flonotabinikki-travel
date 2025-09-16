@@ -93,7 +93,6 @@ export function useStoriesFeed({
           updateMiniMapPoints(updated)
           return updated
         })
-        // conserve la slide visible
         requestAnimationFrame(() => {
           sw?.slideTo(active + fresh.length, 0)
         })
@@ -108,14 +107,11 @@ export function useStoriesFeed({
       onPlay?.(idx)
 
       const current = items[idx]
-      // synchro URL (respecte [lang])
       if (current?.id) {
         const base = lang ? `/${lang}` : ''
         window.history.replaceState(null, '', `${base}/stories/${current.id}`)
-        // highlight du point actif
         miniMapRef.current?.setActive(current.id)
       }
-      // déplacement de la caméra si lat/lng dispo
       if (current?.lat != null && current?.lng != null) {
         miniMapRef.current?.flyTo(current.lng!, current.lat!)
       }

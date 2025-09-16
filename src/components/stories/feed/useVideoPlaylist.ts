@@ -11,11 +11,10 @@ export function useVideoPlaylist() {
     videoRefs.current[index] = el
   }
 
-  // applique l’état audio correct en fonction du slide actif
   const applyAudioState = (activeIndex: number, muted = isMuted) => {
     videoRefs.current.forEach((v, i) => {
       if (!v) return
-      v.muted = muted || i !== activeIndex // si son ON, seul l'actif est non-mute
+      v.muted = muted || i !== activeIndex
     })
   }
 
@@ -37,12 +36,10 @@ export function useVideoPlaylist() {
   const toggleSound = (activeIndex: number) => {
     setIsMuted((prev) => {
       const next = !prev
-      // met à jour immédiatement les éléments vidéo
       videoRefs.current.forEach((v, i) => {
         if (!v) return
         v.muted = next || i !== activeIndex
         if (!v.muted) {
-          // déverrouille l’audio après geste utilisateur
           v.play().catch(() => {})
           v.volume = 1
         }

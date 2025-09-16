@@ -1,0 +1,28 @@
+{
+  "events": [
+    {
+      "id": 1,
+      "title": "Sakurajima Volcano",
+      "description": "Active stratovolcano dominating Kinkō Bay—ferry access and multiple observation points around the island.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0022/main.mp4",
+      "side": "left",
+      "camera": { "center": [130.656631, 31.59257], "zoom": 12 }
+    },
+    {
+      "id": 2,
+      "title": "Sengan-en Garden & Shōko Shūseikan",
+      "description": "Shimazu clan villa garden with borrowed views of Sakurajima; part of Japan’s Meiji Industrial Revolution sites.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0030/main.mp4",
+      "side": "right",
+      "camera": { "center": [130.578563, 31.618131], "zoom": 12 }
+    },
+    {
+      "id": 3,
+      "title": "Shiroyama Observatory",
+      "description": "Classic city lookout for day and night panoramas of Kagoshima and Sakurajima across the bay.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0149/main.mp4",
+      "side": "left",
+      "camera": { "center": [130.549576, 31.596804], "zoom": 12 }
+    }
+  ]
+}

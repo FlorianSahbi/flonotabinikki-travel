@@ -81,7 +81,6 @@ export const timelineEvents: TimelineEvent[] = [
   },
 ]
 
-/* ====== OVERVIEW (villes + dates) ====== */
 export type OverviewCity = {
   id: number
   title: string
@@ -94,7 +93,6 @@ export type OverviewCity = {
   dateISO?: string
 }
 
-/** Villes (coords approx) + dates fournies */
 export const overviewCities: OverviewCity[] = [
   {
     id: 1,

@@ -1,0 +1,28 @@
+{
+  "events": [
+    {
+      "id": 1,
+      "title": "Awa Odori Kaikan",
+      "description": "Dance museum and gateway to the Bizan Ropeway (5F).",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0022/main.mp4",
+      "side": "left",
+      "camera": { "center": [134.5451063, 34.0701211], "zoom": 12 }
+    },
+    {
+      "id": 2,
+      "title": "Mount Bizan Summit",
+      "description": "Panoramic city and coast views—Tokushima’s beloved ‘eyebrow’ mountain.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0030/main.mp4",
+      "side": "right",
+      "camera": { "center": [134.5376988, 34.0669259], "zoom": 12 }
+    },
+    {
+      "id": 3,
+      "title": "Tokushima Castle Park & Museum",
+      "description": "Castle ruins with a local history museum and garden.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0149/main.mp4",
+      "side": "left",
+      "camera": { "center": [134.555664, 34.07333], "zoom": 12 }
+    }
+  ]
+}

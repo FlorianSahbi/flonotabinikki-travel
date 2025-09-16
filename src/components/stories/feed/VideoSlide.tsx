@@ -24,7 +24,6 @@ export default function VideoSlide({
   isMuted: boolean
   onToggleSound: () => void
 }) {
-  // Empêche le swipe de Swiper quand on clique/touche le bouton
   const stop = (e: MouseEvent | TouchEvent) => {
     e.stopPropagation()
   }
@@ -44,19 +43,16 @@ export default function VideoSlide({
         loop
       />
 
-      {/* Date */}
       <div className="absolute left-3 top-3 rounded bg-black/55 px-2 py-1 text-xs text-white">
         {dateLabel}
       </div>
 
-      {/* Coordonnées */}
       {item.lat != null && item.lng != null && (
         <div className="absolute bottom-3 left-3 rounded bg-black/55 px-2 py-1 text-xs text-white">
           {Number(item.lat).toFixed(4)} / {Number(item.lng).toFixed(4)}
         </div>
       )}
 
-      {/* Bouton son - bas droite, au-dessus de tout */}
       <button
         type="button"
         onClick={onToggleSound}

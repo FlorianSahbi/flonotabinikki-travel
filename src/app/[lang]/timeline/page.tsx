@@ -117,7 +117,6 @@ export default function TimelineOverviewPage() {
     if (didRestoreRef.current) return
     didRestoreRef.current = true
 
-    // Détection reload (API Navigation Timing + fallback legacy)
     let isReload = false
     try {
       const entries = performance.getEntriesByType?.('navigation') as

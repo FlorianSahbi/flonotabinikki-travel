@@ -1,0 +1,28 @@
+{
+  "events": [
+    {
+      "id": 1,
+      "title": "Lake Kawaguchi",
+      "description": "One of the Fuji Five Lakes—mirror views of Mt. Fuji, lakeside promenades and cruises from the north shore.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0022/main.mp4",
+      "side": "left",
+      "camera": { "center": [138.756668, 35.514999], "zoom": 12 }
+    },
+    {
+      "id": 2,
+      "title": "Mt. Fuji Panoramic Ropeway",
+      "description": "A 3-minute ride up Mt. Tenjō to the Fujimidai lookout with sweeping views over Lake Kawaguchi and Fuji.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0030/main.mp4",
+      "side": "right",
+      "camera": { "center": [138.772089, 35.504032], "zoom": 12 }
+    },
+    {
+      "id": 3,
+      "title": "Oishi Park (North Shore)",
+      "description": "Flower-lined lakeside path framing Mt. Fuji—famous for lavender in summer and blazing foliage in autumn.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0149/main.mp4",
+      "side": "left",
+      "camera": { "center": [138.7460595, 35.5229022], "zoom": 12 }
+    }
+  ]
+}

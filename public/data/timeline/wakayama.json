@@ -1,0 +1,28 @@
+{
+  "events": [
+    {
+      "id": 1,
+      "title": "Wakayama Castle",
+      "description": "Hilltop castle and park with a reconstructed keep and museum.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0022/main.mp4",
+      "side": "left",
+      "camera": { "center": [135.1674, 34.2261], "zoom": 12 }
+    },
+    {
+      "id": 2,
+      "title": "Kimiidera Temple",
+      "description": "Temple on a hillside known for early-blooming plums and sea views.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0030/main.mp4",
+      "side": "right",
+      "camera": { "center": [135.1904, 34.195], "zoom": 12 }
+    },
+    {
+      "id": 3,
+      "title": "Kuroshio Market (Marina City)",
+      "description": "Lively seafood market famous for tuna cutting shows and fresh bites.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0149/main.mp4",
+      "side": "left",
+      "camera": { "center": [135.1424, 34.1767], "zoom": 12 }
+    }
+  ]
+}

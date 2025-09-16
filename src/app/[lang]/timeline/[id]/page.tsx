@@ -1,7 +1,7 @@
 // src/app/[lang]/timeline/[id]/page.tsx
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import {
   useParams,
   usePathname,
@@ -10,7 +10,7 @@ import {
 } from 'next/navigation'
 import {
   overviewCities,
-  timelineEvents,
+  type TimelineEvent,
 } from '@/components/timeline/timeline.data'
 import { DetailTimeline, TitleHero } from '@/components/timeline'
 import { useTimelineShell } from '@/app/context/timeline/context'
@@ -22,6 +22,19 @@ function slugify(text: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
+}
+
+async function loadCityEvents(slug: string): Promise<TimelineEvent[]> {
+  try {
+    const res = await fetch(`/data/timeline/${slug}.json`, {
+      cache: 'force-cache',
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data) ? (data as TimelineEvent[]) : (data.events ?? [])
+  } catch {
+    return []
+  }
 }
 
 export default function TimelineDetailPage() {
@@ -40,6 +53,8 @@ export default function TimelineDetailPage() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
+  const [events, setEvents] = useState<TimelineEvent[] | null>(null)
+
   useEffect(() => {
     setDetailModeAudio(true)
   }, [setDetailModeAudio])
@@ -53,6 +68,26 @@ export default function TimelineDetailPage() {
     }
   }, [pathname, router, searchParams, currentCity])
 
+  useEffect(() => {
+    let cancelled = false
+    const cityFromUrl = searchParams.get('city')
+    const fallbackSlug = currentCity
+      ? ((currentCity as any).slug ?? slugify(currentCity.title))
+      : null
+    const slug = cityFromUrl ? slugify(cityFromUrl) : fallbackSlug
+    if (!slug) {
+      setEvents([])
+      return
+    }
+    ;(async () => {
+      const evts = await loadCityEvents(slug)
+      if (!cancelled) setEvents(evts)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [searchParams, currentCity])
+
   return (
     <main className="relative">
       <button
@@ -64,17 +99,11 @@ export default function TimelineDetailPage() {
         ← Back
       </button>
 
-      {currentCity && (
-        <TitleHero
-          title={currentCity.title}
-          subtitle={currentCity.dateISO ?? '01 June 2024'}
-          heightVh={50}
-        />
-      )}
+      {currentCity && <TitleHero title={currentCity.title} heightVh={50} />}
 
-      {timelineEvents.length > 0 && (
+      {Array.isArray(events) && events.length > 0 && (
         <DetailTimeline
-          events={timelineEvents}
+          events={events}
           spacingVh={100}
           padTop={1.5}
           padBottom={1.5}

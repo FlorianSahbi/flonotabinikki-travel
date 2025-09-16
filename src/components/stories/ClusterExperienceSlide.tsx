@@ -91,7 +91,6 @@ export default function ClusterExperienceSlide({
         }
       }}
     >
-      {/* Background : carousel ou image fallback */}
       <div className="absolute inset-0 z-0">
         <BackgroundVideoCarousel
           sources={sources}
@@ -100,10 +99,8 @@ export default function ClusterExperienceSlide({
         />
       </div>
 
-      {/* Overlay */}
       <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
 
-      {/* Texte/Contenu */}
       <div className="absolute inset-x-0 bottom-0 z-20 p-6 text-white pointer-events-none">
         <div className="mb-2 inline-flex rounded bg-white/15 px-2 py-1 text-xs font-medium backdrop-blur">
           {dateStr}
