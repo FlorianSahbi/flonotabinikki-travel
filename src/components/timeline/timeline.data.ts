@@ -19,7 +19,6 @@ export interface TimelineEvent {
   camera?: CameraView
 }
 
-/* ====== DÉTAIL (timeline existante) ====== */
 export const timelineEvents: TimelineEvent[] = [
   {
     id: 1,

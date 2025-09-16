@@ -12,8 +12,8 @@ import {
   overviewCities,
   timelineEvents,
 } from '@/components/timeline/timeline.data'
-import { useTimelineShell } from '../layout'
 import { DetailTimeline, TitleHero } from '@/components/timeline'
+import { useTimelineShell } from '@/app/context/timeline/context'
 
 function slugify(text: string) {
   return text
@@ -32,10 +32,9 @@ export default function TimelineDetailPage() {
   )
 
   const currentCity =
-    overviewCities.find((candidateCity) => candidateCity.id === numericId) ??
-    overviewCities[0]
+    overviewCities.find((c) => c.id === numericId) ?? overviewCities[0]
 
-  const { setCamera, backToOverview, setDetailModeAudio } = useTimelineShell()
+  const { easeTo, backToOverview, setDetailModeAudio } = useTimelineShell()
 
   const router = useRouter()
   const pathname = usePathname()
@@ -45,7 +44,6 @@ export default function TimelineDetailPage() {
     setDetailModeAudio(true)
   }, [setDetailModeAudio])
 
-  // ✅ Ajout de currentCity dans les deps
   useEffect(() => {
     const urlParams = new URLSearchParams(searchParams.toString())
     if (!urlParams.has('city') && currentCity) {
@@ -81,23 +79,19 @@ export default function TimelineDetailPage() {
           padTop={1.5}
           padBottom={1.5}
           onActiveEventChange={(activeEvent) => {
-            if (!activeEvent?.camera) return
-            const { center, zoom, pitch, bearing } = activeEvent.camera
-            setCamera({
-              center,
-              zoom: zoom ?? 12,
-              pitch: pitch ?? 40,
-              bearing: bearing ?? 0,
-            })
+            const cam = activeEvent?.camera
+            if (!cam) return
+            const { center, zoom, pitch, bearing } = cam
+            easeTo(
+              {
+                center,
+                zoom: zoom ?? 12,
+                pitch: pitch ?? 40,
+                bearing: bearing ?? 0,
+              },
+              { duration: 900, keepBearingOnViewChange: false }
+            )
           }}
-        />
-      )}
-
-      {currentCity && (
-        <TitleHero
-          title={currentCity.title}
-          subtitle={currentCity.dateISO ?? '01 June 2024'}
-          heightVh={0}
         />
       )}
     </main>

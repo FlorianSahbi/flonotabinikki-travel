@@ -1,4 +1,3 @@
-// src/app/[lang]/timeline/page.tsx
 'use client'
 
 import { CardsReveal, OverviewRail } from '@/components/timeline'
@@ -6,10 +5,13 @@ import {
   timelineEvents,
   overviewCities,
 } from '@/components/timeline/timeline.data'
-import { JAPAN_OVERVIEW, useTimelineShell } from './layout'
 import { useEffect, useMemo } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { Entry as OverviewEntry } from '@/components/timeline/OverviewRail'
+import {
+  JAPAN_OVERVIEW,
+  useTimelineShell,
+} from '@/app/context/timeline/context'
 
 function slugify(s: string) {
   return s
@@ -21,7 +23,7 @@ function slugify(s: string) {
 }
 
 export default function TimelineOverviewPage() {
-  const { setCamera, goToDetail } = useTimelineShell()
+  const { easeTo, jumpTo, goToDetail } = useTimelineShell()
 
   const router = useRouter()
   const pathname = usePathname()
@@ -55,33 +57,39 @@ export default function TimelineOverviewPage() {
       null
 
     if (!entry) {
-      setCamera(() => JAPAN_OVERVIEW)
+      jumpTo(JAPAN_OVERVIEW)
       return
     }
 
-    setCamera((prev) => ({
-      center: entry.center,
-      zoom: entry.zoom ?? 10.5,
-      pitch: prev.pitch ?? 25,
-      bearing: prev.bearing ?? 0,
-    }))
-  }, [searchParams, setCamera, entriesBySlug])
+    easeTo(
+      {
+        center: entry.center,
+        zoom: entry.zoom ?? 10.5,
+        pitch: 25,
+        bearing: 0,
+      },
+      { keepBearingOnViewChange: true }
+    )
+  }, [searchParams, entriesBySlug, easeTo, jumpTo])
 
   const handleCross = (entry: OverviewEntry | undefined) => {
     if (!entry) return
     const slug = (entry as any).slug ?? slugify(entry.title)
     setQueryParam('city', slug)
-    setCamera((prev) => ({
-      center: entry.center,
-      zoom: entry.zoom ?? 10.5,
-      pitch: prev.pitch ?? 25,
-      bearing: prev.bearing ?? 0,
-    }))
+    easeTo(
+      {
+        center: entry.center,
+        zoom: entry.zoom ?? 10.5,
+        pitch: 25,
+        bearing: 0,
+      },
+      { keepBearingOnViewChange: true }
+    )
   }
 
   const handleExitTop = () => {
     setQueryParam('city', null)
-    setCamera(() => JAPAN_OVERVIEW)
+    jumpTo(JAPAN_OVERVIEW)
   }
 
   const mediaItems = timelineEvents.slice(0, 6).map((evt) => {

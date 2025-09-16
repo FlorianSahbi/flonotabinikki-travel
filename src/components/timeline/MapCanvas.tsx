@@ -1,6 +1,7 @@
+// src/components/timeline/MapCanvas.tsx
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useReducedMotion } from 'framer-motion'
 
 type View = {
@@ -10,21 +11,35 @@ type View = {
   pitch?: number
 }
 
+export type MapCanvasHandle = {
+  flyTo: (
+    v: View,
+    opts?: { duration?: number; keepBearingOnViewChange?: boolean }
+  ) => void
+  easeTo: (
+    v: View,
+    opts?: { duration?: number; keepBearingOnViewChange?: boolean }
+  ) => void
+  jumpTo: (v: View, opts?: { keepBearingOnViewChange?: boolean }) => void
+  getMap: () => any | null
+}
+
 const TERRAIN_EXAGGERATION = 1.2
 const SKY_SUN_INTENSITY = 15
 
-// Photorealistic atmosphere (fixed: day)
+const INITIAL_CENTER: [number, number] = [134, 35]
+const INITIAL_ZOOM = 4
+const INITIAL_PITCH = 25
+const INITIAL_BEARING = 0
+const DEFAULT_DURATION = 1200
+
 function applyAtmosphere(map: any) {
   if (!map) return
-  const lightColor = '#ffffff'
-  const lightIntensity = 0.6
-  const starIntensity = 0 // day
-
   try {
     map.setLight({
       anchor: 'viewport',
-      color: lightColor,
-      intensity: lightIntensity,
+      color: '#ffffff',
+      intensity: 0.6,
       position: [1.2, 200, 25],
     } as any)
   } catch {}
@@ -57,7 +72,7 @@ function applyAtmosphere(map: any) {
       'high-color': 'rgb(36,92,223)',
       'space-color': 'rgb(11,11,25)',
       'horizon-blend': 0.24,
-      'star-intensity': starIntensity,
+      'star-intensity': 0,
     } as any)
   } catch {}
 }
@@ -89,37 +104,40 @@ function applyLabelTrim(map: any) {
   })
 }
 
-export default function MapCanvas({
-  accessToken,
-  style = 'mapbox://styles/mapbox/satellite-streets-v12',
-  visible,
-  view,
-  duration = 1200,
-  className = '',
-  keepBearingOnViewChange = false,
-}: {
-  accessToken: string
-  style?: string
-  visible: boolean
-  view?: View
-  duration?: number
-  className?: string
-  keepBearingOnViewChange?: boolean
-}) {
+function normalizeCamera(map: any, v: View, keepBearing?: boolean) {
+  const desiredPitch = v.pitch ?? INITIAL_PITCH
+  const desiredBearing = keepBearing
+    ? map.getBearing()
+    : (v.bearing ?? INITIAL_BEARING)
+  return {
+    center: v.center,
+    zoom: v.zoom ?? map.getZoom(),
+    pitch: desiredPitch,
+    bearing: desiredBearing,
+  }
+}
+
+const MapCanvas = forwardRef<
+  MapCanvasHandle,
+  {
+    accessToken: string
+    style?: string
+    visible: boolean
+    className?: string
+  }
+>(function MapCanvas(
+  {
+    accessToken,
+    style = 'mapbox://styles/mapbox/satellite-streets-v12',
+    visible,
+    className = '',
+  },
+  ref
+) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<any>(null)
 
-  const initialCenterRef = useRef<[number, number]>(view?.center ?? [134, 35])
-  const initialZoomRef = useRef<number>(view?.zoom ?? 4)
-  const initialPitchRef = useRef<number>(view?.pitch ?? 45)
-
   const reduceMotion = useReducedMotion()
-
-  const centerLon = view?.center?.[0]
-  const centerLat = view?.center?.[1]
-  const viewZoom = view?.zoom
-  const viewPitch = view?.pitch
-  const viewBearing = view?.bearing
 
   useEffect(() => {
     let mounted = true
@@ -128,27 +146,20 @@ export default function MapCanvas({
       if (!mounted || !containerRef.current) return
       mapboxgl.default.accessToken = accessToken
 
-      const initialCenter = initialCenterRef.current
-      const initialZoom = initialZoomRef.current
-      const initialBearing = 0
-      const initialPitch = initialPitchRef.current
-
       const map = new mapboxgl.default.Map({
         container: containerRef.current,
         style,
-        center: initialCenter,
-        zoom: initialZoom,
-        bearing: initialBearing,
-        pitch: initialPitch,
+        center: INITIAL_CENTER,
+        zoom: INITIAL_ZOOM,
+        bearing: INITIAL_BEARING,
+        pitch: INITIAL_PITCH,
         interactive: false,
         attributionControl: false,
-        antialias: false, // ✅ moins de coût GPU (on n'a plus d'extrusions 3D)
+        antialias: false,
       })
       mapRef.current = map
 
-      // ✅ appliquer terrain/atm/trim après le chargement complet du style
       map.on('load', () => {
-        // Terrain 3D (exagération fixe)
         if (!map.getSource('mapbox-dem')) {
           try {
             map.addSource('mapbox-dem', {
@@ -166,7 +177,6 @@ export default function MapCanvas({
           })
         } catch {}
 
-        // Atmosphère + trim des couches
         applyAtmosphere(map)
         applyLabelTrim(map)
       })
@@ -183,50 +193,43 @@ export default function MapCanvas({
     }
   }, [accessToken, style])
 
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !view) return
-
-    const desiredPitch = viewPitch ?? 45
-    const nextBearing = keepBearingOnViewChange
-      ? map.getBearing()
-      : (viewBearing ?? 0)
-
-    const dur = reduceMotion
-      ? Math.max(200, Math.round((duration ?? 1200) * 0.35))
-      : (duration ?? 1200)
-
-    const onMoveEnd = () => {
-      map.off('moveend', onMoveEnd)
-    }
-    map.on('moveend', onMoveEnd)
-
-    map.flyTo({
-      center: [
-        centerLon ?? map.getCenter().lng,
-        centerLat ?? map.getCenter().lat,
-      ],
-      zoom: viewZoom ?? map.getZoom(),
-      pitch: desiredPitch,
-      bearing: nextBearing,
-      duration: dur,
-      essential: true,
-    })
-
-    return () => {
-      map.off('moveend', onMoveEnd)
-    }
-  }, [
-    view,
-    centerLon,
-    centerLat,
-    viewZoom,
-    viewPitch,
-    viewBearing,
-    keepBearingOnViewChange,
-    duration,
-    reduceMotion,
-  ])
+  useImperativeHandle(
+    ref,
+    (): MapCanvasHandle => ({
+      flyTo: (v, opts) => {
+        const map = mapRef.current
+        if (!map) return
+        const cam = normalizeCamera(map, v, opts?.keepBearingOnViewChange)
+        const dur = reduceMotion
+          ? Math.max(
+              200,
+              Math.round((opts?.duration ?? DEFAULT_DURATION) * 0.35)
+            )
+          : (opts?.duration ?? DEFAULT_DURATION)
+        map.flyTo({ ...cam, duration: dur, essential: true })
+      },
+      easeTo: (v, opts) => {
+        const map = mapRef.current
+        if (!map) return
+        const cam = normalizeCamera(map, v, opts?.keepBearingOnViewChange)
+        const dur = reduceMotion
+          ? Math.max(
+              200,
+              Math.round((opts?.duration ?? DEFAULT_DURATION) * 0.35)
+            )
+          : (opts?.duration ?? DEFAULT_DURATION)
+        map.easeTo({ ...cam, duration: dur, essential: true })
+      },
+      jumpTo: (v, opts) => {
+        const map = mapRef.current
+        if (!map) return
+        const cam = normalizeCamera(map, v, opts?.keepBearingOnViewChange)
+        map.jumpTo(cam)
+      },
+      getMap: () => mapRef.current,
+    }),
+    [reduceMotion]
+  )
 
   return (
     <div
@@ -237,4 +240,6 @@ export default function MapCanvas({
       <div ref={containerRef} className="absolute inset-0" />
     </div>
   )
-}
+})
+
+export default MapCanvas

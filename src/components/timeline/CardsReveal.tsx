@@ -1,3 +1,4 @@
+// src/components/timeline/CardsReveal.tsx
 'use client'
 
 import { useMemo, useRef } from 'react'

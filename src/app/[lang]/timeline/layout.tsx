@@ -1,74 +1,21 @@
 // src/app/[lang]/timeline/layout.tsx
 'use client'
 
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import HeadlessSyncTracks from '@/components/audio/HeadlessSyncTracks'
-import type { CameraView } from '@/components/timeline/timeline.data'
 import { MapCanvas } from '@/components/timeline'
-
-type TimelineShellContextType = {
-  camera: CameraView
-  setCamera: React.Dispatch<React.SetStateAction<CameraView>>
-  setDetailModeAudio: (on: boolean) => void
-  goToDetail: (id: number) => void
-  backToOverview: () => void
-}
-
-const TimelineShellContext = createContext<TimelineShellContextType | null>(
-  null
-)
-
-export const useTimelineShell = () => {
-  const context = useContext(TimelineShellContext)
-  if (!context)
-    throw new Error('useTimelineShell must be used within timeline/layout')
-  return context
-}
+import type { MapCanvasHandle } from '@/components/timeline/MapCanvas'
+import {
+  TimelineShellContext,
+  JAPAN_OVERVIEW,
+  type TimelineShellAPI,
+} from '@/app/context/timeline/context'
 
 const AUDIO_TRACKS = [
   { label: 'Overview', url: '/N1.mp3', gain: 1 },
   { label: 'Detail', url: '/N2.mp3', gain: 1 },
 ] as const
-
-export const JAPAN_OVERVIEW: CameraView = {
-  center: [134, 35],
-  zoom: 4,
-  pitch: 25,
-  bearing: 0,
-}
-
-function ScrollResetOnPathChange() {
-  const pathname = usePathname()
-
-  useEffect(() => {
-    if (
-      typeof window !== 'undefined' &&
-      'scrollRestoration' in window.history
-    ) {
-      window.history.scrollRestoration = 'manual'
-    }
-  }, [])
-
-  useEffect(() => {
-    const pathParts = pathname?.split('/').filter(Boolean) ?? []
-    const isDetailPage =
-      pathParts.length >= 3 && pathParts[1] === 'timeline' && pathParts[2]
-    if (isDetailPage) {
-      requestAnimationFrame(() => {
-        window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
-      })
-    }
-  }, [pathname])
-
-  return null
-}
 
 export default function TimelineLayout({
   children,
@@ -78,49 +25,70 @@ export default function TimelineLayout({
   const router = useRouter()
   const pathname = usePathname()
 
-  const [camera, setCamera] = useState<CameraView>(JAPAN_OVERVIEW)
+  const mapRef = useRef<MapCanvasHandle>(null)
 
   const [activeAudioTrackIndex, setActiveAudioTrackIndex] = useState(0)
   const audioPlayingRef = useRef(true)
 
-  const pathParts = pathname?.split('/').filter(Boolean) ?? []
-  const currentLang = pathParts[0] ?? 'en'
-  const isDetailPage =
-    pathParts.length >= 3 && pathParts[1] === 'timeline' && pathParts[2]
+  const parts = pathname?.split('/').filter(Boolean) ?? []
+  const currentLang = parts[0] ?? 'en'
+  const isDetailPage = parts.length >= 3 && parts[1] === 'timeline' && parts[2]
 
   useEffect(() => {
     setActiveAudioTrackIndex(isDetailPage ? 1 : 0)
   }, [isDetailPage])
 
-  const setDetailModeAudio = (on: boolean) => {
+  const setDetailModeAudio = useCallback((on: boolean) => {
     setActiveAudioTrackIndex(on ? 1 : 0)
-  }
+  }, [])
 
   const getCurrentSearch = () =>
     typeof window !== 'undefined' ? window.location.search : ''
 
-  const goToDetail = (id: number) => {
-    router.push(`/${currentLang}/timeline/${id}${getCurrentSearch()}`)
-  }
+  const goToDetail = useCallback(
+    (id: number) => {
+      router.push(`/${currentLang}/timeline/${id}${getCurrentSearch()}`)
+    },
+    [router, currentLang]
+  )
 
-  const backToOverview = () => {
+  const backToOverview = useCallback(() => {
     router.push(`/${currentLang}/timeline${getCurrentSearch()}`, {
       scroll: false,
     })
-  }
+  }, [router, currentLang])
+
+  const flyTo = useCallback<TimelineShellAPI['flyTo']>(
+    (view, opts) => mapRef.current?.flyTo(view, opts),
+    []
+  )
+  const easeTo = useCallback<TimelineShellAPI['easeTo']>(
+    (view, opts) => mapRef.current?.easeTo(view, opts),
+    []
+  )
+  const jumpTo = useCallback<TimelineShellAPI['jumpTo']>(
+    (view, opts) => mapRef.current?.jumpTo(view, opts),
+    []
+  )
+
+  useEffect(() => {
+    mapRef.current?.jumpTo(JAPAN_OVERVIEW)
+  }, [])
+
+  const api = useMemo<TimelineShellAPI>(
+    () => ({
+      flyTo,
+      easeTo,
+      jumpTo,
+      setDetailModeAudio,
+      goToDetail,
+      backToOverview,
+    }),
+    [flyTo, easeTo, jumpTo, setDetailModeAudio, goToDetail, backToOverview]
+  )
 
   return (
-    <TimelineShellContext.Provider
-      value={{
-        camera,
-        setCamera,
-        setDetailModeAudio,
-        goToDetail,
-        backToOverview,
-      }}
-    >
-      <ScrollResetOnPathChange />
-
+    <TimelineShellContext.Provider value={api}>
       <HeadlessSyncTracks
         tracks={AUDIO_TRACKS as any}
         activeIndex={activeAudioTrackIndex}
@@ -129,9 +97,9 @@ export default function TimelineLayout({
       />
 
       <MapCanvas
+        ref={mapRef}
         accessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string}
         visible
-        view={camera}
       />
 
       {children}

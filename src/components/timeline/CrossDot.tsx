@@ -1,3 +1,4 @@
+// src/components/timeline/CrossDot.tsx
 'use client'
 
 import { useRef } from 'react'

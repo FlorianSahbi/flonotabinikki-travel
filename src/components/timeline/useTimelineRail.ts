@@ -15,7 +15,6 @@ export type UseTimelineRailOptions = {
   hysteresis?: number
 }
 
-// add this alias (optional, but makes intent clear)
 type PercentageString = `${number}%`
 
 export function useTimelineRail<T>(
