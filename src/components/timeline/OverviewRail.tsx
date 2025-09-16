@@ -1,4 +1,3 @@
-// src/components/timeline/OverviewRail.tsx
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -48,6 +47,7 @@ type Props = {
   padBottom?: number
   hysteresis?: number
   onTitleClick?: (id: number) => void
+  initialActiveIndex?: number
 }
 
 export default function OverviewRail({
@@ -70,6 +70,7 @@ export default function OverviewRail({
   padBottom = 0.5,
   hysteresis = 0.06,
   onTitleClick,
+  initialActiveIndex,
 }: Props) {
   const railOptions: UseTimelineRailOptions = {
     spacingVh,
@@ -96,8 +97,20 @@ export default function OverviewRail({
     lineBoxRef,
     activeIndex,
     lastDirection,
+    setActiveIndex,
     handleCross,
   } = useTimelineRail<Entry>(entries, railOptions, onCross)
+
+  useEffect(() => {
+    if (
+      typeof initialActiveIndex === 'number' &&
+      Number.isFinite(initialActiveIndex) &&
+      count > 0
+    ) {
+      const clamped = Math.max(0, Math.min(count - 1, initialActiveIndex))
+      setActiveIndex(clamped)
+    }
+  }, [initialActiveIndex, count])
 
   const { scrollYProgress } = useScroll({
     target: lineBoxRef,

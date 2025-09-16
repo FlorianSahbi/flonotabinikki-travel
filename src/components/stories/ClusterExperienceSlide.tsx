@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { useRouter } from 'next/navigation'
-import { pushWithViewTransition } from '@/lib/viewTransitions'
 import type { FeedItem } from '@/lib/feed'
 import BackgroundVideoCarousel from './BackgroundVideoCarousel'
 
@@ -18,7 +16,6 @@ export default function ClusterExperienceSlide({
   href?: string
   onClick?: () => void
 }) {
-  const router = useRouter()
   const [sources, setSources] = useState<string[]>([])
   const [visible, setVisible] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -59,8 +56,6 @@ export default function ClusterExperienceSlide({
 
   const handleOpen = async () => {
     if (href) {
-      await pushWithViewTransition((h) => router.push(h), href)
-    } else {
       onClick?.()
     }
     setTimeout(() => {}, 600)

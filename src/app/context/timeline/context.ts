@@ -5,6 +5,7 @@ import { createContext, useContext } from 'react'
 import type { CameraView } from '@/components/timeline/timeline.data'
 
 export type TimelineShellAPI = {
+  ready: () => Promise<void>
   flyTo: (
     view: CameraView,
     opts?: { duration?: number; keepBearingOnViewChange?: boolean }

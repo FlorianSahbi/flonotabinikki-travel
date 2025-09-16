@@ -22,6 +22,7 @@ export type MapCanvasHandle = {
   ) => void
   jumpTo: (v: View, opts?: { keepBearingOnViewChange?: boolean }) => void
   getMap: () => any | null
+  ready: () => Promise<void>
 }
 
 const TERRAIN_EXAGGERATION = 1.2
@@ -43,7 +44,6 @@ function applyAtmosphere(map: any) {
       position: [1.2, 200, 25],
     } as any)
   } catch {}
-
   if (!map.getLayer('sky')) {
     try {
       map.addLayer({
@@ -64,7 +64,6 @@ function applyAtmosphere(map: any) {
       )
     } catch {}
   }
-
   try {
     map.setFog({
       range: [0.45, 11],
@@ -80,27 +79,16 @@ function applyAtmosphere(map: any) {
 function applyLabelTrim(map: any) {
   if (!map?.getStyle?.()) return
   const layers: any[] = map.getStyle().layers || []
-
   const setVis = (id: string, vis: 'none' | 'visible') => {
     try {
       map.setLayoutProperty(id, 'visibility', vis)
     } catch {}
   }
-
   layers.forEach((l) => {
     const id = l.id as string
-    if (l.type === 'symbol') {
-      setVis(id, 'none')
-      return
-    }
-    if (/^(road-|bridge-|tunnel-)/i.test(id)) {
-      setVis(id, 'none')
-      return
-    }
-    if (/^admin-/i.test(id)) {
-      setVis(id, 'none')
-      return
-    }
+    if (l.type === 'symbol') return setVis(id, 'none')
+    if (/^(road-|bridge-|tunnel-)/i.test(id)) return setVis(id, 'none')
+    if (/^admin-/i.test(id)) return setVis(id, 'none')
   })
 }
 
@@ -117,25 +105,34 @@ function normalizeCamera(map: any, v: View, keepBearing?: boolean) {
   }
 }
 
-const MapCanvas = forwardRef<
-  MapCanvasHandle,
-  {
-    accessToken: string
-    style?: string
-    visible: boolean
-    className?: string
-  }
->(function MapCanvas(
+type Props = {
+  accessToken: string
+  style?: string
+  visible: boolean
+  className?: string
+  onReady?: () => void
+}
+
+const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas(
   {
     accessToken,
     style = 'mapbox://styles/mapbox/satellite-streets-v12',
     visible,
     className = '',
+    onReady,
   },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<any>(null)
+
+  const readyResolveRef = useRef<() => void>(() => {})
+  const readyPromiseRef = useRef<Promise<void>>(
+    new Promise<void>((resolve) => {
+      readyResolveRef.current = resolve
+    })
+  )
+  const hasReadyFiredRef = useRef(false)
 
   const reduceMotion = useReducedMotion()
 
@@ -179,6 +176,25 @@ const MapCanvas = forwardRef<
 
         applyAtmosphere(map)
         applyLabelTrim(map)
+
+        try {
+          map.triggerRepaint()
+        } catch {}
+
+        const fireReadyOnce = () => {
+          if (hasReadyFiredRef.current) return
+          hasReadyFiredRef.current = true
+          try {
+            onReady?.()
+          } catch {}
+          try {
+            readyResolveRef.current?.()
+          } catch {}
+        }
+
+        map.once('idle', fireReadyOnce)
+
+        setTimeout(fireReadyOnce, 2500)
       })
     })()
 
@@ -191,7 +207,7 @@ const MapCanvas = forwardRef<
         mapRef.current = null
       }
     }
-  }, [accessToken, style])
+  }, [accessToken, style, onReady])
 
   useImperativeHandle(
     ref,
@@ -227,6 +243,7 @@ const MapCanvas = forwardRef<
         map.jumpTo(cam)
       },
       getMap: () => mapRef.current,
+      ready: () => readyPromiseRef.current,
     }),
     [reduceMotion]
   )
