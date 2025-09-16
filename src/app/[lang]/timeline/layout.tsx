@@ -130,13 +130,8 @@ export default function TimelineLayout({
 
       <MapCanvas
         accessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string}
-        style="mapbox://styles/mapbox/satellite-streets-v12"
         visible
         view={camera}
-        enable3D
-        terrainExaggeration={1.2}
-        orbit={false}
-        keepBearingOnViewChange={false}
       />
 
       {children}
