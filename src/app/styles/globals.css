@@ -1,0 +1,69 @@
+@import 'tailwindcss';
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
+@import 'cesium/Build/Cesium/Widgets/widgets.css';
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  color-scheme: light dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+* {
+  min-width: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* View Transitions: désactiver le cross-fade global pour garder seulement la transition des éléments partagés */
+@layer base {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
+
+/* Utilité Tailwind pour nommer l’élément partagé via une variable CSS */
+@layer utilities {
+  .vt-shared {
+    view-transition-name: var(--vt-name);
+  }
+}
+
+/* View Transitions: désactive le cross-fade global pour garder seulement la transition des éléments partagés */
+@layer base {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
