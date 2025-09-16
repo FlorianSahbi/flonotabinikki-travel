@@ -1,7 +1,6 @@
 @import 'tailwindcss';
 @plugin "@tailwindcss/forms";
 @plugin "@tailwindcss/typography";
-@import 'cesium/Build/Cesium/Widgets/widgets.css';
 
 :root {
   --background: #ffffff;

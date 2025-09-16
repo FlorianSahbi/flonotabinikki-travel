@@ -23,7 +23,6 @@ type Props = {
   loop?: boolean
   playsInline?: boolean
   children?: React.ReactNode
-  /** Notifie l’index courant à chaque switch */
   onIndexChange?: (index: number) => void
 }
 
@@ -44,10 +43,8 @@ export default function BackgroundVideoCarousel({
   onIndexChange,
 }: Props) {
   const n = Math.max(0, sources.length)
-  // Clé basée sur le CONTENU (pas la référence) pour éviter les resets inutiles
   const sourcesKey = useMemo(() => sources.join('\x1F'), [sources])
 
-  // Deux slots persistants superposés
   const [activeSlot, setActiveSlot] = useState<0 | 1>(0)
   // @ts-expect-error 'TODO'
   const [slotSrc, setSlotSrc] = useState<[string, string]>(() => {
@@ -56,11 +53,9 @@ export default function BackgroundVideoCarousel({
     return [sources[0], sources[1]]
   })
 
-  // Démarrer à 1 (ne pas sauter la #1)
   const nextPtrRef = useRef<number>(n > 1 ? 1 : 0)
   const switchingToRef = useRef<0 | 1 | null>(null)
 
-  // Reset si le CONTENU change
   useEffect(() => {
     const newN = Math.max(0, sources.length)
     if (newN === 0) {
@@ -100,7 +95,6 @@ export default function BackgroundVideoCarousel({
     nextPtrRef.current = (nextPtrRef.current + 1) % n
   }
 
-  // Cadence interne
   useEffect(() => {
     if (n <= 1) return
     const id = setInterval(queueNext, intervalMs)
@@ -111,7 +105,6 @@ export default function BackgroundVideoCarousel({
   const onCanPlay = (slot: 0 | 1) => {
     if (switchingToRef.current === slot) {
       setActiveSlot(slot)
-      // Index nouvellement actif = celui qu’on vient de charger
       const newIndex = nextPtrRef.current === 0 ? n - 1 : nextPtrRef.current - 1
       onIndexChange?.(newIndex)
       switchingToRef.current = null

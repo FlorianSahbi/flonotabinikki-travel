@@ -41,7 +41,6 @@ export default function HomeHero({
 
   const sources = useMemo(() => data.map((d) => d.src as string), [data])
 
-  // Index courant (synchro depuis le carrousel)
   const [current, setCurrent] = useState(0)
   const prefersReduced = useReducedMotion()
   const activeDuration = prefersReduced ? 0 : slideMs / 1000
@@ -58,7 +57,6 @@ export default function HomeHero({
         />
       </div>
 
-      {/* barres: passé = plein, courant = anim, futur = vide (Framer Motion) */}
       <div className="absolute inset-x-4 top-4 z-20 flex gap-2">
         {data.map((_, i) => (
           <div
@@ -81,7 +79,6 @@ export default function HomeHero({
         ))}
       </div>
 
-      {/* Titre + CTA (CTA Option B propre) */}
       <div className="relative z-30 flex h-full flex-col items-center justify-center px-6 text-center">
         <h1 className="leading-[0.95] tracking-tight">
           <span
@@ -121,7 +118,6 @@ export default function HomeHero({
         </motion.div>
       </div>
 
-      {/* Lieu : ANIME TOUT le chip (fond + icône + texte) */}
       <div className="absolute inset-x-0 bottom-4 z-30 flex justify-center px-4">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div

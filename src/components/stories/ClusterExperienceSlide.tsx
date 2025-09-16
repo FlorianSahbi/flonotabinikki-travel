@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { useRouter } from 'next/navigation'
-import { pushWithViewTransition } from '@/lib/viewTransitions'
 import type { FeedItem } from '@/lib/feed'
 import BackgroundVideoCarousel from './BackgroundVideoCarousel'
 
@@ -18,7 +16,6 @@ export default function ClusterExperienceSlide({
   href?: string
   onClick?: () => void
 }) {
-  const router = useRouter()
   const [sources, setSources] = useState<string[]>([])
   const [visible, setVisible] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -59,8 +56,6 @@ export default function ClusterExperienceSlide({
 
   const handleOpen = async () => {
     if (href) {
-      await pushWithViewTransition((h) => router.push(h), href)
-    } else {
       onClick?.()
     }
     setTimeout(() => {}, 600)
@@ -96,7 +91,6 @@ export default function ClusterExperienceSlide({
         }
       }}
     >
-      {/* Background : carousel ou image fallback */}
       <div className="absolute inset-0 z-0">
         <BackgroundVideoCarousel
           sources={sources}
@@ -105,10 +99,8 @@ export default function ClusterExperienceSlide({
         />
       </div>
 
-      {/* Overlay */}
       <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
 
-      {/* Texte/Contenu */}
       <div className="absolute inset-x-0 bottom-0 z-20 p-6 text-white pointer-events-none">
         <div className="mb-2 inline-flex rounded bg-white/15 px-2 py-1 text-xs font-medium backdrop-blur">
           {dateStr}

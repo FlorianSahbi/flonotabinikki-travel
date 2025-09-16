@@ -1,0 +1,28 @@
+{
+  "events": [
+    {
+      "id": 1,
+      "title": "Izumo Taisha Grand Shrine",
+      "description": "One of Japan’s oldest Shinto shrines, dedicated to Ōkuninushi and famed for its giant shimenawa rope. Stroll the sacred approach, Haiden and Kagura-den.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0022/main.mp4",
+      "side": "left",
+      "camera": { "center": [132.685392, 35.401996], "zoom": 12 }
+    },
+    {
+      "id": 2,
+      "title": "Inasa-no-Hama Beach & Bentenjima",
+      "description": "Sacred shoreline west of the shrine where deities are welcomed during Kamiarizuki; iconic Benten-jima rock and famous sunsets.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0030/main.mp4",
+      "side": "right",
+      "camera": { "center": [132.670956, 35.401932], "zoom": 12 }
+    },
+    {
+      "id": 3,
+      "title": "Hinomisaki Lighthouse & Coast",
+      "description": "Historic lighthouse on the Shimane Peninsula with dramatic sea cliffs and top sunset views; near Hinomisaki Shrine.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0149/main.mp4",
+      "side": "left",
+      "camera": { "center": [132.629253, 35.433728], "zoom": 12 }
+    }
+  ]
+}

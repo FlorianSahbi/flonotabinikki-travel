@@ -23,7 +23,6 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
     const mapRef = useRef<mapboxgl.Map | null>(null)
     const containerRef = useRef<HTMLDivElement>(null)
 
-    // figer centre + points pour init unique (évite le “flash”)
     const initialCenterRef = useRef(center)
     const initialPointsRef = useRef(initialPoints)
 
@@ -45,7 +44,7 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
             type: 'FeatureCollection',
             features: points.map((p) => ({
               type: 'Feature',
-              id: p.id, // utile si un jour on passe en feature-state
+              id: p.id,
               geometry: { type: 'Point', coordinates: [p.lng!, p.lat!] },
               properties: { id: p.id },
             })),
@@ -60,9 +59,7 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
           : ['==', ['get', 'id'], '__none__']
         try {
           map.setFilter('videos-active', filter)
-        } catch {
-          // no-op si la couche n'est pas encore là
-        }
+        } catch {}
       },
     }))
 
@@ -97,7 +94,6 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
           },
         })
 
-        // Couche des points "normaux"
         map.addLayer({
           id: 'videos-points',
           type: 'circle',
@@ -110,7 +106,6 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
           },
         })
 
-        // Couche du point actif (au-dessus)
         map.addLayer({
           id: 'videos-active',
           type: 'circle',
@@ -121,7 +116,6 @@ const MiniMapOverlay = forwardRef<MiniMapOverlayRef, Props>(
             'circle-stroke-width': 1,
             'circle-stroke-color': '#fff',
           },
-          // filtrée sur aucun point au départ
           filter: ['==', ['get', 'id'], '__none__'],
         })
       })

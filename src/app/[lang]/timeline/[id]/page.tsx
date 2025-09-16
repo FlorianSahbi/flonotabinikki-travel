@@ -1,7 +1,7 @@
 // src/app/[lang]/timeline/[id]/page.tsx
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import {
   useParams,
   usePathname,
@@ -10,10 +10,10 @@ import {
 } from 'next/navigation'
 import {
   overviewCities,
-  timelineEvents,
+  type TimelineEvent,
 } from '@/components/timeline/timeline.data'
-import { useTimelineShell } from '../layout'
 import { DetailTimeline, TitleHero } from '@/components/timeline'
+import { useTimelineShell } from '@/app/context/timeline/context'
 
 function slugify(text: string) {
   return text
@@ -24,6 +24,19 @@ function slugify(text: string) {
     .replace(/(^-|-$)/g, '')
 }
 
+async function loadCityEvents(slug: string): Promise<TimelineEvent[]> {
+  try {
+    const res = await fetch(`/data/timeline/${slug}.json`, {
+      cache: 'force-cache',
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data) ? (data as TimelineEvent[]) : (data.events ?? [])
+  } catch {
+    return []
+  }
+}
+
 export default function TimelineDetailPage() {
   const routeParams = useParams()
   const rawIdParam = (routeParams?.id ?? '') as string | string[]
@@ -32,20 +45,20 @@ export default function TimelineDetailPage() {
   )
 
   const currentCity =
-    overviewCities.find((candidateCity) => candidateCity.id === numericId) ??
-    overviewCities[0]
+    overviewCities.find((c) => c.id === numericId) ?? overviewCities[0]
 
-  const { setCamera, backToOverview, setDetailModeAudio } = useTimelineShell()
+  const { easeTo, backToOverview, setDetailModeAudio } = useTimelineShell()
 
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
+  const [events, setEvents] = useState<TimelineEvent[] | null>(null)
+
   useEffect(() => {
     setDetailModeAudio(true)
   }, [setDetailModeAudio])
 
-  // ✅ Ajout de currentCity dans les deps
   useEffect(() => {
     const urlParams = new URLSearchParams(searchParams.toString())
     if (!urlParams.has('city') && currentCity) {
@@ -54,6 +67,26 @@ export default function TimelineDetailPage() {
       router.replace(`${pathname}?${urlParams.toString()}`)
     }
   }, [pathname, router, searchParams, currentCity])
+
+  useEffect(() => {
+    let cancelled = false
+    const cityFromUrl = searchParams.get('city')
+    const fallbackSlug = currentCity
+      ? ((currentCity as any).slug ?? slugify(currentCity.title))
+      : null
+    const slug = cityFromUrl ? slugify(cityFromUrl) : fallbackSlug
+    if (!slug) {
+      setEvents([])
+      return
+    }
+    ;(async () => {
+      const evts = await loadCityEvents(slug)
+      if (!cancelled) setEvents(evts)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [searchParams, currentCity])
 
   return (
     <main className="relative">
@@ -66,38 +99,28 @@ export default function TimelineDetailPage() {
         ← Back
       </button>
 
-      {currentCity && (
-        <TitleHero
-          title={currentCity.title}
-          subtitle={currentCity.dateISO ?? '01 June 2024'}
-          heightVh={50}
-        />
-      )}
+      {currentCity && <TitleHero title={currentCity.title} heightVh={50} />}
 
-      {timelineEvents.length > 0 && (
+      {Array.isArray(events) && events.length > 0 && (
         <DetailTimeline
-          events={timelineEvents}
+          events={events}
           spacingVh={100}
           padTop={1.5}
           padBottom={1.5}
           onActiveEventChange={(activeEvent) => {
-            if (!activeEvent?.camera) return
-            const { center, zoom, pitch, bearing } = activeEvent.camera
-            setCamera({
-              center,
-              zoom: zoom ?? 12,
-              pitch: pitch ?? 40,
-              bearing: bearing ?? 0,
-            })
+            const cam = activeEvent?.camera
+            if (!cam) return
+            const { center, zoom, pitch, bearing } = cam
+            easeTo(
+              {
+                center,
+                zoom: zoom ?? 12,
+                pitch: pitch ?? 40,
+                bearing: bearing ?? 0,
+              },
+              { duration: 900, keepBearingOnViewChange: false }
+            )
           }}
-        />
-      )}
-
-      {currentCity && (
-        <TitleHero
-          title={currentCity.title}
-          subtitle={currentCity.dateISO ?? '01 June 2024'}
-          heightVh={0}
         />
       )}
     </main>

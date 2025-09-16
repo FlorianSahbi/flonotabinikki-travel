@@ -1,0 +1,28 @@
+{
+  "events": [
+    {
+      "id": 1,
+      "title": "Matsue Castle (National Treasure)",
+      "description": "Original wooden keep with wide moats and samurai quarter—one of Japan’s few surviving main towers.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0022/main.mp4",
+      "side": "left",
+      "camera": { "center": [133.04985, 35.47522], "zoom": 12 }
+    },
+    {
+      "id": 2,
+      "title": "Lake Shinji Sunset (Shimane Art Museum Lawn)",
+      "description": "Beloved golden-hour vista on Matsue’s waterfront—locals gather for ‘Top 100 Sunsets in Japan’.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0030/main.mp4",
+      "side": "right",
+      "camera": { "center": [133.0496602, 35.4559664], "zoom": 12 }
+    },
+    {
+      "id": 3,
+      "title": "Yūshien Garden (Daikonshima)",
+      "description": "Peony-famous island garden with ponds and bridges in brackish Nakaumi—seasonal flowers year-round.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0149/main.mp4",
+      "side": "left",
+      "camera": { "center": [133.175278, 35.490556], "zoom": 12 }
+    }
+  ]
+}

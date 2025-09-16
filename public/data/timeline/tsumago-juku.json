@@ -1,0 +1,28 @@
+{
+  "events": [
+    {
+      "id": 1,
+      "title": "Tsumago Post Town",
+      "description": "Beautifully preserved Edo-period inn town on the Nakasendō route.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0022/main.mp4",
+      "side": "left",
+      "camera": { "center": [137.597, 35.567], "zoom": 12 }
+    },
+    {
+      "id": 2,
+      "title": "Magome Pass Trail (Nakasendō)",
+      "description": "Classic hike between Tsumago and Magome through cedar forests and waterfalls.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0030/main.mp4",
+      "side": "right",
+      "camera": { "center": [137.586, 35.529], "zoom": 12 }
+    },
+    {
+      "id": 3,
+      "title": "Waki-Honjin Okuya",
+      "description": "Historic sub-inn museum showing the town’s travel heritage.",
+      "image": "https://pub-b4bb576b39e343d3a70283e9314cfcee.r2.dev/IMG_0149/main.mp4",
+      "side": "left",
+      "camera": { "center": [137.5975, 35.5675], "zoom": 12 }
+    }
+  ]
+}

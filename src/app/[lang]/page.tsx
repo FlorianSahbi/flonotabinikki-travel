@@ -1,4 +1,4 @@
-// page that renders HomeHero with random videos
+// src/app/[lang]/page.tsx
 import HomeHero from '@/components/home/HomeHero'
 import { supabase } from '@/lib/supabaseClient'
 
