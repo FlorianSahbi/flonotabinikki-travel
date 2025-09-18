@@ -1,52 +1,59 @@
 // src/app/[lang]/timeline/page.tsx
 'use client'
 
-import { CardsReveal, OverviewRail } from '@/components/timeline'
+import Link from 'next/link'
+import { CardsReveal } from '@/components/timeline'
+import OverviewRailSections, {
+  type Entry as RailEntry,
+} from '@/components/timeline/OverviewRail'
 import {
   timelineEvents,
   overviewCities,
 } from '@/components/timeline/timeline.data'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import type { Entry as OverviewEntry } from '@/components/timeline/OverviewRail'
-import {
-  JAPAN_OVERVIEW,
-  useTimelineShell,
-} from '@/app/context/timeline/context'
-
-function slugify(s: string) {
-  return s
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-}
+import { usePathname, useSearchParams } from 'next/navigation'
+import { useTimelineShell } from '@/app/context/timeline/context'
+import { slugify } from '@/lib/slugify'
+import scrollIntoView from 'scroll-into-view-if-needed'
+import StrokeTitle from '@/components/timeline/StrokeTitle'
+import ViewportCenterLine from '@/components/timeline/ViewportCenterLine'
 
 export default function TimelineOverviewPage() {
-  const { easeTo, jumpTo, flyTo, goToDetail } = useTimelineShell()
+  const { easeTo, isMapReady } = useTimelineShell()
 
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  const RAIL_SPACING_VH = 50
-  const RAIL_PAD_TOP = 0
-
-  const railRootRef = useRef<HTMLDivElement | null>(null)
   const didRestoreRef = useRef(false)
   const [initialActiveIndex, setInitialActiveIndex] = useState<
     number | undefined
   >(undefined)
 
+  // slug -> DOM element (section)
+  const itemElsRef = useRef(new Map<string, HTMLElement>())
+
+  const getSlug = useCallback(
+    (e: { title: string; [k: string]: any }) => e.slug ?? slugify(e.title),
+    []
+  )
+
+  // expose refs from sections
+  const handleItemRef = useCallback(
+    ({ slug, el }: { id: number; slug: string; el: HTMLElement | null }) => {
+      const map = itemElsRef.current
+      if (el) map.set(slug, el)
+      else map.delete(slug)
+    },
+    []
+  )
+
   const entriesBySlug = useMemo(() => {
     const map = new Map<string, (typeof overviewCities)[number]>()
     for (const entry of overviewCities) {
-      const slug = (entry as any).slug ?? slugify(entry.title)
-      map.set(slug, entry)
+      map.set(getSlug(entry as any), entry)
     }
     return map
-  }, [])
+  }, [getSlug])
 
   const setQueryParam = useCallback(
     (key: string, value: string | null) => {
@@ -54,85 +61,62 @@ export default function TimelineOverviewPage() {
       if (value === null) params.delete(key)
       else params.set(key, value)
       const qs = params.toString()
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+      const url = qs ? `${pathname}?${qs}` : pathname
+      // Remplacement "soft" via History API pour éviter un full nav
+      window.history.replaceState(null, '', url)
     },
-    [pathname, router, searchParams]
+    [pathname, searchParams]
+  )
+
+  // active entry (center overlay title)
+  const [activeEntry, setActiveEntry] = useState<RailEntry | null>(null)
+
+  // pending fly once map is ready
+  const pendingRef = useRef<RailEntry | null>(null)
+
+  const flyToEntry = useCallback(
+    (entry: RailEntry) => {
+      const doIt = () =>
+        easeTo(
+          {
+            center: entry.center,
+            zoom: entry.zoom ?? 10.5,
+            pitch: 25,
+            bearing: 0,
+          },
+          { keepBearingOnViewChange: true }
+        )
+      if (isMapReady) doIt()
+      else pendingRef.current = entry
+    },
+    [easeTo, isMapReady]
   )
 
   useEffect(() => {
-    const cityParamRaw = searchParams.get('city')
-    const citySlug = cityParamRaw ? slugify(cityParamRaw) : null
-    const idParam = searchParams.get('id')
-
-    const entry =
-      (citySlug && entriesBySlug.get(citySlug)) ||
-      (idParam && overviewCities.find((e) => String(e.id) === idParam)) ||
-      null
-
-    if (!entry) {
-      jumpTo(JAPAN_OVERVIEW)
-      return
+    if (isMapReady && pendingRef.current) {
+      const e = pendingRef.current
+      pendingRef.current = null
+      flyToEntry(e)
     }
-
-    easeTo(
-      {
-        center: entry.center,
-        zoom: entry.zoom ?? 10.5,
-        pitch: 25,
-        bearing: 0,
-      },
-      { keepBearingOnViewChange: true }
-    )
-  }, [searchParams, entriesBySlug, easeTo, jumpTo])
+  }, [isMapReady, flyToEntry])
 
   const handleCross = useCallback(
-    (entry: OverviewEntry | undefined) => {
+    (entry?: RailEntry) => {
       if (!entry) return
-      const slug = (entry as any).slug ?? slugify(entry.title)
+      setActiveEntry(entry)
+      const slug = getSlug(entry as any)
       setQueryParam('city', slug)
-      easeTo(
-        {
-          center: entry.center,
-          zoom: entry.zoom ?? 10.5,
-          pitch: 25,
-          bearing: 0,
-        },
-        { keepBearingOnViewChange: true }
-      )
+      flyToEntry(entry)
     },
-    [easeTo, setQueryParam]
+    [getSlug, setQueryParam, flyToEntry]
   )
 
-  const handleExitTop = useCallback(() => {
-    flyTo(JAPAN_OVERVIEW)
-  }, [flyTo])
-
+  // Restore from ?city once: set initialActiveIndex + scroll to section
   useEffect(() => {
-    try {
-      if ('scrollRestoration' in history) {
-        history.scrollRestoration = 'manual'
-      }
-    } catch {}
-
     if (didRestoreRef.current) return
     didRestoreRef.current = true
 
-    let isReload = false
-    try {
-      const entries = performance.getEntriesByType?.('navigation') as
-        | PerformanceNavigationTiming[]
-        | undefined
-
-      const reloadByEntries = entries?.[0]?.type === 'reload'
-      const legacyReload = (performance as any)?.navigation?.type === 1
-
-      isReload = !!reloadByEntries || !!legacyReload
-    } catch {}
-
-    if (!isReload) return
-
-    const params = new URLSearchParams(window.location.search)
-    const cityParam = params.get('city')
+    const cityParam = searchParams.get('city')
     if (!cityParam) return
 
     const slug = slugify(cityParam)
@@ -141,63 +125,76 @@ export default function TimelineOverviewPage() {
 
     const index = overviewCities.findIndex((e) => e.id === entry.id)
     if (index < 0) return
-
-    const containerEl = railRootRef.current
-    if (!containerEl) return
-
-    const vhPx = window.innerHeight / 100
-    const yInContainerPx = (RAIL_PAD_TOP + index) * RAIL_SPACING_VH * vhPx
-
-    const rect = containerEl.getBoundingClientRect()
-    const containerTopPx = rect.top + window.scrollY
-
-    const targetScrollY =
-      containerTopPx + yInContainerPx - Math.round(window.innerHeight / 2)
+    setInitialActiveIndex(index)
 
     requestAnimationFrame(() => {
-      window.scrollTo(0, Math.max(0, targetScrollY))
-      handleCross(entry as unknown as OverviewEntry)
-      setInitialActiveIndex(index)
+      const el =
+        itemElsRef.current.get(slug) ||
+        document.querySelector<HTMLElement>(`[data-city-id="${entry.id}"]`)
+
+      if (el) {
+        scrollIntoView(el, {
+          block: 'center',
+          inline: 'nearest',
+          behavior: 'auto',
+          scrollMode: 'if-needed',
+        })
+      }
     })
-  }, [entriesBySlug, handleCross])
+  }, [searchParams, entriesBySlug])
 
   const mediaItems = timelineEvents.slice(0, 6).map((evt) => {
-    const isVideo = /\.(mp4|webm|ogg)(\?.*)?$/i.test(evt.image)
-    return {
-      kind: isVideo ? ('video' as const) : ('image' as const),
-      src: evt.image,
-    }
+    return { kind: 'video' as const, src: evt.image }
   })
 
+  // conserver la query courante dans le lien
+  const qs = searchParams?.toString()
+  const suffix = qs ? `?${qs}` : ''
+
   return (
-    <main>
+    <main className="relative">
+      <div className="pointer-events-none fixed left-1/2 top-1/2 z-40 -translate-x-1/2 -translate-y-1/2 text-center">
+        {activeEntry && (
+          <Link
+            href={`timeline/${activeEntry.id}${suffix}`} // relatif → /[lang]/timeline/[id]
+            scroll={false}
+            className="pointer-events-auto inline-block"
+          >
+            <StrokeTitle
+              title={activeEntry.title}
+              {...(activeEntry.kanji ? { kanji: activeEntry.kanji } : {})}
+              className="inline-block cursor-pointer text-white"
+              titleClassName="text-[10vw] leading-none font-extrabold tracking-tight"
+              kanjiClassName="text-[3.6vw] leading-none font-medium"
+              strokeWidthTitle={2}
+              strokeWidthKanji={1}
+              dashTitle="5100"
+              dashKanji="5100"
+              durationSec={1.0}
+              kanjiDelaySec={0.08}
+              hoverFillSec={0.45}
+            />
+          </Link>
+        )}
+      </div>
+
       <CardsReveal
         title="JAPAN ’24"
         subtitle="One-year journey across Japan"
         items={mediaItems}
       />
 
-      <div ref={railRootRef}>
-        <OverviewRail
-          entries={overviewCities}
-          spacingVh={RAIL_SPACING_VH}
-          crossBandPct={8}
-          padTop={RAIL_PAD_TOP}
-          padBottom={1.5}
-          trackerAlign="center"
-          onExitTop={handleExitTop}
-          onCross={(entry) => handleCross(entry)}
-          {...(initialActiveIndex !== undefined ? { initialActiveIndex } : {})}
-          onTitleClick={(id) => {
-            const entry = overviewCities.find((e) => e.id === id)
-            if (entry) {
-              const slug = (entry as any).slug ?? slugify(entry.title)
-              setQueryParam('city', slug)
-            }
-            goToDetail(id)
-          }}
-        />
-      </div>
+      <ViewportCenterLine />
+
+      <OverviewRailSections
+        entries={overviewCities}
+        sectionVh={75}
+        dotSizePx={16}
+        showTrackerLine
+        onCross={(e) => handleCross(e)}
+        onItemRef={handleItemRef}
+        {...(initialActiveIndex !== undefined ? { initialActiveIndex } : {})}
+      />
     </main>
   )
 }

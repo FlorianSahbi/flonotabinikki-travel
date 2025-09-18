@@ -1,7 +1,7 @@
 // src/lib/mapbox/useMapbox.ts
 'use client'
 
-import { useRef, useEffect, useMemo, useCallback } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 import { useReducedMotion } from 'framer-motion'
 import { normalizeCamera, type View } from './utils'
 
@@ -61,14 +61,6 @@ export function useMapbox({
 
   const reduceMotion = useReducedMotion()
 
-  const withDur = useCallback(
-    (ms?: number) => {
-      const base = ms ?? DEFAULT_DURATION
-      return reduceMotion ? Math.max(200, Math.round(base * 0.35)) : base
-    },
-    [reduceMotion]
-  )
-
   useEffect(() => {
     let mounted = true
     ;(async () => {
@@ -127,39 +119,43 @@ export function useMapbox({
     }
   }, [accessToken, style, initialView, interactive, onReady])
 
-  const api: MapAPI = useMemo(
-    () => ({
-      flyTo: (v, opts) => {
+  type MoveMethod = 'flyTo' | 'easeTo' | 'jumpTo'
+
+  const api: MapAPI = useMemo(() => {
+    const createMove =
+      (method: MoveMethod) =>
+      (
+        v: View,
+        opts?: { duration?: number; keepBearingOnViewChange?: boolean }
+      ) => {
         const map = mapRef.current
         if (!map) return
         const cam = normalizeCamera(map, v, opts?.keepBearingOnViewChange)
-        map.flyTo({
-          ...cam,
-          duration: withDur(opts?.duration),
-          essential: true,
-        })
-      },
-      easeTo: (v, opts) => {
-        const map = mapRef.current
-        if (!map) return
-        const cam = normalizeCamera(map, v, opts?.keepBearingOnViewChange)
-        map.easeTo({
-          ...cam,
-          duration: withDur(opts?.duration),
-          essential: true,
-        })
-      },
-      jumpTo: (v, opts) => {
-        const map = mapRef.current
-        if (!map) return
-        const cam = normalizeCamera(map, v, opts?.keepBearingOnViewChange)
-        map.jumpTo(cam)
-      },
+
+        // jumpTo is instant (no duration/essential), unlike animated flyTo/easeTo—handle separately.
+        if (method === 'jumpTo') {
+          map.jumpTo(cam)
+          return
+        }
+
+        // inline reduced-motion handling (no separate helper)
+        const base = opts?.duration ?? DEFAULT_DURATION
+        const duration = reduceMotion
+          ? Math.max(200, Math.round(base * 0.35))
+          : base
+
+        const payload = { ...cam, duration, essential: true }
+        ;(map as any)[method](payload)
+      }
+
+    return {
+      flyTo: createMove('flyTo'),
+      easeTo: createMove('easeTo'),
+      jumpTo: createMove('jumpTo'),
       getMap: () => mapRef.current,
       ready: () => readyPromise,
-    }),
-    [withDur, readyPromise]
-  )
+    }
+  }, [reduceMotion, readyPromise])
 
   return { containerRef, api }
 }

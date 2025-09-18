@@ -1,43 +1,72 @@
 // src/components/timeline/MapCanvas.tsx
 'use client'
 
-import { forwardRef, useImperativeHandle } from 'react'
-import { useMapbox, type MapAPI } from '@/lib/mapbox/useMapbox'
-import type { View } from '@/lib/mapbox/utils'
-
-export type MapCanvasHandle = MapAPI
+import { useEffect, useCallback } from 'react'
+import { useMapbox } from '@/lib/mapbox/useMapbox'
+import { useTimelineShell } from '@/app/context/timeline/context'
 
 type Props = {
   accessToken: string
+  visible?: boolean
   style?: string
-  visible: boolean
-  className?: string
-  onReady?: () => void
-  initialView?: View
+  initialView?: import('@/lib/mapbox/utils').View
+  interactive?: boolean
 }
 
-const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas(
-  { accessToken, style, visible, className = '', onReady, initialView },
-  ref
-) {
-  const { containerRef, api } = useMapbox({
+export function MapCanvas({
+  accessToken,
+  visible = true,
+  style,
+  initialView,
+  interactive = false,
+}: Props) {
+  const { __setMapStatus, __setCameraFns } = useTimelineShell()
+
+  const onReady = useCallback(() => {
+    __setMapStatus('ready')
+  }, [__setMapStatus])
+
+  // ✅ Ne passer que les clés définies (exactOptionalPropertyTypes-friendly)
+  const mapboxOpts = {
     accessToken,
+    interactive,
+    onReady,
     ...(style !== undefined ? { style } : {}),
     ...(initialView !== undefined ? { initialView } : {}),
-    ...(onReady !== undefined ? { onReady } : {}),
-  })
+  }
 
-  useImperativeHandle(ref, () => api, [api])
+  const { containerRef, api } = useMapbox(
+    mapboxOpts as Parameters<typeof useMapbox>[0]
+  )
+
+  useEffect(() => {
+    __setMapStatus('loading')
+    __setCameraFns({
+      flyTo: api.flyTo,
+      easeTo: api.easeTo,
+      jumpTo: api.jumpTo,
+    })
+
+    const map = api.getMap()
+    const onIdle = () => __setMapStatus('idle')
+    map?.on?.('idle', onIdle)
+
+    return () => {
+      map?.off?.('idle', onIdle)
+      __setMapStatus('loading')
+      __setCameraFns({ flyTo: () => {}, easeTo: () => {}, jumpTo: () => {} })
+    }
+  }, [api, __setMapStatus, __setCameraFns])
 
   return (
     <div
-      className={`fixed inset-0 -z-10 pointer-events-none transition-opacity duration-500 ${className}`}
-      style={{ opacity: visible ? 1 : 0 }}
-      aria-hidden
-    >
-      <div ref={containerRef} className="absolute inset-0" />
-    </div>
+      ref={containerRef}
+      style={{
+        display: visible ? 'block' : 'none',
+        position: 'fixed',
+        inset: 0,
+      }}
+      aria-hidden={!visible}
+    />
   )
-})
-
-export default MapCanvas
+}

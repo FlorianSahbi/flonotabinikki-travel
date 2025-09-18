@@ -1,13 +1,10 @@
+// src/components/timeline/OverviewRailSections.tsx
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback, memo } from 'react'
 import { useScroll, useMotionValueEvent } from 'framer-motion'
-import CrossDot from './CrossDot'
-import type { Direction } from './CrossDot'
-import { useTimelineRail, type UseTimelineRailOptions } from './useTimelineRail'
+import { slugify } from '@/lib/slugify'
 import { CentralLine } from './CentralLine'
-import { TrackerDot } from './TrackerDot'
-import StrokeTitle from './StrokeTitle'
 
 export type Entry = {
   id: number
@@ -17,232 +14,200 @@ export type Entry = {
   zoom?: number
 }
 
+type Direction = -1 | 0 | 1
+
 type Props = {
   entries: Entry[]
-  dotCount?: number
-  spacingVh?: number
+  sectionVh?: number // default 75
   dotSizePx?: number
-  strokeWidth?: number
-  dash?: number
-  gap?: number
+  showTrackerLine?: boolean // per-section dashed line
   className?: string
   onCross?: (
     entry: Entry | undefined,
     index: number,
     direction: Direction
   ) => void
-  onExitTop?: (info: {
-    activeIndex: number | null
-    lastDirection: Direction | null
-  }) => void
-  onExitBottom?: (info: {
-    activeIndex: number | null
-    lastDirection: Direction | null
-  }) => void
-  crossBandPct?: number
-  showTracker?: boolean
-  trackerSizePx?: number
-  trackerAlign?: 'center' | 'measure'
-  padTop?: number
-  padBottom?: number
-  hysteresis?: number
-  onTitleClick?: (id: number) => void
   initialActiveIndex?: number
+  onItemRef?: (info: {
+    id: number
+    slug: string
+    el: HTMLElement | null
+  }) => void
 }
 
-export default function OverviewRail({
-  entries,
-  dotCount = 10,
-  spacingVh = 50,
-  dotSizePx = 16,
-  strokeWidth = 4,
-  dash = 20,
-  gap = 24,
-  className = '',
-  onCross,
-  onExitTop,
-  onExitBottom,
-  crossBandPct = 10,
-  showTracker = true,
-  trackerSizePx,
-  trackerAlign = 'center',
-  padTop = 0.5,
-  padBottom = 0.5,
-  hysteresis = 0.06,
-  onTitleClick,
-  initialActiveIndex,
-}: Props) {
-  const railOptions: UseTimelineRailOptions = {
-    spacingVh,
-    dotSizePx,
-    strokeWidth,
-    dash,
-    gap,
-    padTop,
-    padBottom,
-    crossBandPct,
-    hysteresis,
-    ...(trackerSizePx !== undefined ? { trackerSizePx } : {}),
-  }
+const EPS = 1e-3
 
-  const {
-    count,
-    height,
-    colWidth,
-    lineX,
-    offsetTop,
-    offsetBot,
-    trackerSize,
-    rootRef,
-    lineBoxRef,
-    activeIndex,
-    lastDirection,
-    setActiveIndex,
-    handleCross,
-  } = useTimelineRail<Entry>(entries, railOptions, onCross)
+type SectionItemProps = {
+  entry: Entry
+  index: number
+  colWidth: number
+  lineX: number
+  sectionVh: number
+  dotSizePx: number
+  showTrackerLine: boolean
+  isActive: boolean
+  onBecomeActive: (index: number) => void
+  onItemRef?: (info: {
+    id: number
+    slug: string
+    el: HTMLElement | null
+  }) => void
+}
 
-  useEffect(() => {
-    if (
-      typeof initialActiveIndex === 'number' &&
-      Number.isFinite(initialActiveIndex) &&
-      count > 0
-    ) {
-      const clamped = Math.max(0, Math.min(count - 1, initialActiveIndex))
-      setActiveIndex(clamped)
-    }
-  }, [initialActiveIndex, count])
+const SectionItem = memo(function SectionItem({
+  entry,
+  index,
+  colWidth,
+  lineX,
+  sectionVh,
+  dotSizePx,
+  showTrackerLine,
+  isActive,
+  onBecomeActive,
+  onItemRef,
+}: SectionItemProps) {
+  const ref = useRef<HTMLElement | null>(null)
+  const slug = (entry as any).slug ?? slugify(entry.title)
 
   const { scrollYProgress } = useScroll({
-    target: lineBoxRef,
-    offset: ['start 50%', 'end 50%'],
-  })
-  const [overlayVisible, setOverlayVisible] = useState(false)
-  const previousProgressRef = useRef<number | null>(null)
-
-  useMotionValueEvent(scrollYProgress, 'change', (value) => {
-    const isWithin = value > 0 && value < 1
-    if (isWithin !== overlayVisible) setOverlayVisible(isWithin)
-
-    const previous = previousProgressRef.current
-    if (previous !== null) {
-      if (previous > 0 && value <= 0)
-        onExitTop?.({ activeIndex, lastDirection })
-      if (previous < 1 && value >= 1)
-        onExitBottom?.({ activeIndex, lastDirection })
-    }
-    previousProgressRef.current = value
+    target: ref,
+    offset: ['start center', 'end center'],
   })
 
-  const [leftPositionPx, setLeftPositionPx] = useState<number | null>(null)
-  useEffect(() => {
-    if (trackerAlign !== 'measure') {
-      setLeftPositionPx(null)
-      return
+  // active trigger: when entering the section (first time 0 < v < 1)
+  const wasInsideRef = useRef(false)
+  useMotionValueEvent(scrollYProgress, 'change', (v) => {
+    const inside = v > EPS && v < 1 - EPS
+    if (inside && !wasInsideRef.current) {
+      wasInsideRef.current = true
+      onBecomeActive(index)
+    } else if (!inside && wasInsideRef.current) {
+      wasInsideRef.current = false
     }
-    const element = rootRef.current
-    if (!element) return
-    const compute = () => {
-      const rect = element.getBoundingClientRect()
-      setLeftPositionPx(rect.left + lineX)
-    }
-    compute()
-    const resizeObserver = new ResizeObserver(compute)
-    resizeObserver.observe(element)
-    return () => resizeObserver.disconnect()
-  }, [trackerAlign, lineX, rootRef])
-
-  const activeEntry = useMemo(
-    () => (activeIndex != null ? entries?.[activeIndex] : undefined),
-    [activeIndex, entries]
-  )
+  })
 
   return (
-    <div
-      ref={rootRef}
-      className={`relative mx-auto pointer-events-none ${className}`}
-      style={{ height, width: colWidth }}
-      aria-hidden="true"
-      role="presentation"
+    <section
+      ref={(el) => {
+        ref.current = el
+        onItemRef?.({ id: entry.id, slug, el })
+      }}
+      data-index={index}
+      data-city-id={entry.id}
+      data-city-slug={slug}
+      className="relative mx-auto select-none"
+      style={{ height: `${sectionVh}vh`, width: 'min(92vw, 1200px)' }}
     >
-      {count >= 2 && (
+      {showTrackerLine && colWidth > 0 && (
         <CentralLine
           colWidth={colWidth}
           lineX={lineX}
-          strokeWidth={strokeWidth}
-          dash={dash}
-          gap={gap}
-          spacingVh={spacingVh}
-          padTop={padTop}
-          padBottom={padBottom}
-          boxRef={lineBoxRef}
+          strokeWidth={4}
+          dash={20}
+          gap={24}
+          spacingVh={100}
+          padTop={0}
+          padBottom={0}
+          className="z-10"
         />
       )}
 
       <div
-        className="absolute left-1/2 top-0 -translate-x-1/2"
-        style={{ width: colWidth }}
-      >
-        {(entries?.length ? entries : Array.from({ length: dotCount })).map(
-          (_, index) => {
-            const entry = entries?.[index]
-            return (
-              <CrossDot<Entry>
-                key={entries?.[index]?.id ?? index}
-                top={`calc(${padTop + index} * ${spacingVh}vh)`}
-                size={dotSizePx}
-                index={index}
-                {...(entry !== undefined ? { entry } : {})}
-                onCross={handleCross as any}
-                offsetTop={offsetTop}
-                offsetBot={offsetBot}
-                hysteresis={hysteresis}
-              />
-            )
-          }
-        )}
-      </div>
-
-      {showTracker && count >= 2 && (
-        <TrackerDot visible={overlayVisible} size={trackerSize} />
-      )}
-
-      <div
-        className="fixed z-20 select-none text-center"
+        className="sticky z-20 flex justify-center"
         style={{
-          top: '50vh',
-          left:
-            trackerAlign === 'measure' && leftPositionPx != null
-              ? `${leftPositionPx}px`
-              : '50%',
-          transform: 'translate(-50%, -50%)',
-          opacity: overlayVisible && activeEntry ? 1 : 0,
-          transition: 'opacity 200ms ease',
-          pointerEvents: 'none',
+          top: `calc(50vh - ${dotSizePx / 2}px)`,
+          marginTop: -dotSizePx / 2,
+          height: dotSizePx,
         }}
       >
-        {activeEntry && (
-          <div className="pointer-events-auto inline-block">
-            <StrokeTitle
-              title={activeEntry.title}
-              {...(activeEntry.kanji !== undefined
-                ? { kanji: activeEntry.kanji }
-                : {})}
-              className="inline-block cursor-pointer select-none text-center text-white"
-              titleClassName="text-[12vw] leading-none font-extrabold tracking-tight"
-              kanjiClassName="text-[4vw] leading-none font-medium"
-              strokeWidthTitle={2}
-              strokeWidthKanji={1}
-              dashTitle="5100"
-              dashKanji="5100"
-              durationSec={1.1}
-              kanjiDelaySec={0.08}
-              hoverFillSec={0.45}
-              onClick={() => {
-                if (onTitleClick && activeEntry) onTitleClick(activeEntry.id)
-              }}
-            />
-          </div>
-        )}
+        <div
+          className="rounded-full transition-[box-shadow] duration-200"
+          style={{
+            width: dotSizePx,
+            height: dotSizePx,
+            background: 'white',
+            boxShadow: isActive ? '0 0 0 4px rgba(255,255,255,0.35)' : 'none',
+          }}
+        />
+      </div>
+    </section>
+  )
+})
+
+export default function OverviewRailSections({
+  entries,
+  sectionVh = 75,
+  dotSizePx = 16,
+  showTrackerLine = true,
+  className = '',
+  onCross,
+  initialActiveIndex,
+  onItemRef,
+}: Props) {
+  const sectionsRef = useRef<Array<HTMLElement | null>>([])
+
+  // measure width to center dashed line
+  const measureRef = useRef<HTMLDivElement | null>(null)
+  const [colWidth, setColWidth] = useState(0)
+  const lineX = Math.max(0, Math.round(colWidth / 2))
+
+  useEffect(() => {
+    const target = sectionsRef.current[0] ?? measureRef.current
+    if (!target) return
+    const update = () => setColWidth(target.clientWidth)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(target)
+    return () => ro.disconnect()
+  }, [entries.length])
+
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  const lastIndexRef = useRef<number | null>(null)
+
+  const onBecomeActive = useCallback(
+    (index: number) => {
+      if (activeIndex === index) return
+      lastIndexRef.current = index
+      setActiveIndex(index)
+      onCross?.(entries[index], index, 0)
+    },
+    [activeIndex, entries, onCross]
+  )
+
+  // optional initial selection
+  useEffect(() => {
+    if (
+      typeof initialActiveIndex === 'number' &&
+      Number.isFinite(initialActiveIndex)
+    ) {
+      lastIndexRef.current = initialActiveIndex
+      setActiveIndex(initialActiveIndex)
+      onCross?.(entries[initialActiveIndex], initialActiveIndex, 0)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialActiveIndex])
+
+  return (
+    <div ref={measureRef} className={`relative mx-auto ${className}`}>
+      <div aria-hidden="true" role="presentation">
+        {entries.map((entry, index) => (
+          <SectionItem
+            key={entry.id}
+            entry={entry}
+            index={index}
+            colWidth={colWidth}
+            lineX={lineX}
+            sectionVh={sectionVh}
+            dotSizePx={dotSizePx}
+            showTrackerLine={showTrackerLine}
+            isActive={activeIndex === index}
+            onBecomeActive={onBecomeActive}
+            onItemRef={(info) => {
+              sectionsRef.current[index] = info.el
+              onItemRef?.(info)
+            }}
+          />
+        ))}
       </div>
     </div>
   )
