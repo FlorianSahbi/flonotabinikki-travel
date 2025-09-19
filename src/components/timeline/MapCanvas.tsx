@@ -1,38 +1,28 @@
 // src/components/timeline/MapCanvas.tsx
 'use client'
 
-import { useEffect, useCallback } from 'react'
+import { useEffect } from 'react'
 import { useMapbox } from '@/lib/mapbox/useMapbox'
 import { useMapCtx } from '@/app/context/map/context'
 
+/**
+ * Minimal Map container (status driven here).
+ * - Style/initial state come from Studio.
+ * - Non-interactive; camera is controlled by context.
+ * - Single source of truth for map status via Mapbox 'load'/'idle'.
+ */
 type Props = {
   accessToken: string
   visible?: boolean
-  style?: string
-  initialView?: import('@/lib/mapbox/utils').View
-  interactive?: boolean
 }
 
-export function MapCanvas({
-  accessToken,
-  visible = true,
-  style,
-  initialView,
-  interactive = false,
-}: Props) {
+export function MapCanvas({ accessToken, visible = true }: Props) {
   const { __setStatus, __setCameraFns } = useMapCtx()
 
-  const onReady = useCallback(() => {
-    __setStatus('ready')
-  }, [__setStatus])
+  // Instantiate map (hook only creates the map and exposes camera helpers)
+  const { containerRef, api } = useMapbox({ accessToken })
 
-  const opts: Parameters<typeof useMapbox>[0] = { accessToken, onReady }
-  if (style !== undefined) opts.style = style
-  if (initialView !== undefined) opts.initialView = initialView
-  if (interactive !== undefined) opts.interactive = interactive
-
-  const { containerRef, api } = useMapbox(opts)
-
+  // Expose camera helpers to MapContext
   useEffect(() => {
     __setCameraFns({
       flyTo: api.flyTo,
@@ -48,31 +38,48 @@ export function MapCanvas({
     }
   }, [api.flyTo, api.easeTo, api.jumpTo, __setCameraFns])
 
+  // Drive status: loading -> ready -> idle
   useEffect(() => {
-    const map = api.getMap()
-    if (!map) return
+    __setStatus('loading')
+
+    let disposed = false
+    let attached = false
 
     const onLoad = () => __setStatus('ready')
     const onIdle = () => __setStatus('idle')
 
-    try {
-      if (map.loaded?.()) {
-        const tilesOk =
-          typeof map.areTilesLoaded === 'function'
-            ? map.areTilesLoaded()
-            : false
+    function attachWhenReady() {
+      if (disposed) return
+      const map = api.getMap()
+      if (!map) {
+        // map not created yet (async import) → try next frame
+        requestAnimationFrame(attachWhenReady)
+        return
+      }
+
+      attached = true
+
+      // If already loaded (fast refresh / cache warm), derive a consistent state immediately.
+      const hasLoaded = typeof (map as any).loaded === 'function'
+      const hasTiles = typeof (map as any).areTilesLoaded === 'function'
+      if (hasLoaded && (map as any).loaded()) {
+        const tilesOk = hasTiles ? (map as any).areTilesLoaded() : false
         __setStatus(tilesOk ? 'idle' : 'ready')
       }
-    } catch {
-      /* no-op */
+
+      map.on('load', onLoad)
+      map.on('idle', onIdle)
     }
 
-    map.once?.('load', onLoad)
-    map.on?.('idle', onIdle)
+    attachWhenReady()
 
     return () => {
-      map.off?.('idle', onIdle)
-      map.off?.('load', onLoad)
+      disposed = true
+      const map = api.getMap()
+      if (attached && map) {
+        map.off('load', onLoad)
+        map.off('idle', onIdle)
+      }
     }
   }, [api, __setStatus])
 

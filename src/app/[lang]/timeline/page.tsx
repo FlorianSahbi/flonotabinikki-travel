@@ -1,3 +1,4 @@
+// src/app/[lang]/timeline/page.tsx
 'use client'
 
 import Link from 'next/link'
@@ -16,10 +17,10 @@ import { slugify } from '@/lib/slugify'
 import scrollIntoView from 'scroll-into-view-if-needed'
 import StrokeTitle from '@/components/timeline/StrokeTitle'
 import ViewportCenterLine from '@/components/timeline/ViewportCenterLine'
+import { CAM_PRESET } from '@/lib/mapbox/cameraPresets' // ⬅️ NEW
 
 export default function TimelineOverviewPage() {
-  const { easeTo, isMapReady } = useTimelineCtx()
-
+  const { easeTo, isMapReady, setDetailModeAudio } = useTimelineCtx() // ⬅️ get setDetailModeAudio
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -28,7 +29,6 @@ export default function TimelineOverviewPage() {
   const [initialActiveIndex, setInitialActiveIndex] = useState<
     number | undefined
   >(undefined)
-
   const itemElsRef = useRef(new Map<string, HTMLElement>())
 
   const getSlug = useCallback(
@@ -68,18 +68,17 @@ export default function TimelineOverviewPage() {
   const [activeEntry, setActiveEntry] = useState<RailEntry | null>(null)
 
   const pendingRef = useRef<RailEntry | null>(null)
-
   const flyToEntry = useCallback(
     (entry: RailEntry) => {
       const doIt = () =>
         easeTo(
           {
             center: entry.center,
-            zoom: entry.zoom ?? 10.5,
-            pitch: 25,
-            bearing: 0,
+            zoom: entry.zoom ?? CAM_PRESET.overview.zoom, // overview preset
+            pitch: CAM_PRESET.overview.pitch,
+            bearing: CAM_PRESET.overview.bearing,
           },
-          { keepBearingOnViewChange: true }
+          { keepBearingOnViewChange: false }
         )
       if (isMapReady) doIt()
       else pendingRef.current = entry
@@ -152,6 +151,18 @@ export default function TimelineOverviewPage() {
             href={`timeline/${activeEntry.id}${suffix}`}
             scroll={false}
             className="pointer-events-auto inline-block"
+            onClick={() => {
+              setDetailModeAudio(true)
+              easeTo(
+                {
+                  center: activeEntry.center,
+                  zoom: CAM_PRESET.detail.zoom,
+                  pitch: CAM_PRESET.detail.pitch,
+                  bearing: CAM_PRESET.detail.bearing,
+                },
+                { duration: 600, keepBearingOnViewChange: false }
+              )
+            }}
           >
             <StrokeTitle
               title={activeEntry.title}

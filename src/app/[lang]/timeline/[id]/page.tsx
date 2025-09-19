@@ -1,3 +1,4 @@
+// src/app/[lang]/timeline/[id]/page.tsx
 'use client'
 
 import Link from 'next/link'
@@ -10,7 +11,7 @@ import {
 import { DetailTimeline, TitleHero } from '@/components/timeline'
 import { useTimelineCtx } from '@/app/context/timeline/context'
 import { slugify } from '@/lib/slugify'
-import ViewportCenterLine from '@/components/timeline/ViewportCenterLine'
+import { CAM_PRESET } from '@/lib/mapbox/cameraPresets' // ⬅️ NEW
 
 async function loadCityEvents(slug: string): Promise<TimelineEvent[]> {
   try {
@@ -35,8 +36,7 @@ export default function TimelineDetailPage() {
   const currentCity =
     overviewCities.find((c) => c.id === numericId) ?? overviewCities[0]
 
-  const { easeTo, setDetailModeAudio } = useTimelineCtx()
-
+  const { easeTo, isMapReady, setDetailModeAudio } = useTimelineCtx()
   const searchParams = useSearchParams()
   const [events, setEvents] = useState<TimelineEvent[] | null>(null)
 
@@ -44,6 +44,20 @@ export default function TimelineDetailPage() {
     setDetailModeAudio(true)
   }, [setDetailModeAudio])
 
+  useEffect(() => {
+    if (!isMapReady || !currentCity) return
+    easeTo(
+      {
+        center: currentCity.center,
+        zoom: CAM_PRESET.detail.zoom,
+        pitch: CAM_PRESET.detail.pitch,
+        bearing: CAM_PRESET.detail.bearing,
+      },
+      { duration: 600, keepBearingOnViewChange: false }
+    )
+  }, [isMapReady, currentCity?.id, easeTo])
+
+  // Charger les events selon ?city (comme avant)
   useEffect(() => {
     let cancelled = false
     const cityFromUrl = searchParams.get('city')
@@ -80,8 +94,6 @@ export default function TimelineDetailPage() {
 
       {currentCity && <TitleHero title={currentCity.title} heightVh={50} />}
 
-      <ViewportCenterLine horizontal={false} />
-
       {Array.isArray(events) && events.length > 0 && (
         <DetailTimeline
           events={events}
@@ -93,9 +105,9 @@ export default function TimelineDetailPage() {
             easeTo(
               {
                 center,
-                zoom: zoom ?? 12,
-                pitch: pitch ?? 40,
-                bearing: bearing ?? 0,
+                zoom: zoom ?? CAM_PRESET.detail.zoom,
+                pitch: pitch ?? CAM_PRESET.detail.pitch,
+                bearing: bearing ?? CAM_PRESET.detail.bearing,
               },
               { duration: 900, keepBearingOnViewChange: false }
             )

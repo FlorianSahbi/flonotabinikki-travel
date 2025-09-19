@@ -1,4 +1,3 @@
-// src/components/timeline/OverviewRailSections.tsx
 'use client'
 
 import { useEffect, useRef, useState, useCallback, memo } from 'react'
@@ -18,9 +17,9 @@ type Direction = -1 | 0 | 1
 
 type Props = {
   entries: Entry[]
-  sectionVh?: number
+  sectionVh?: number // default 75
   dotSizePx?: number
-  showTrackerLine?: boolean
+  showTrackerLine?: boolean // per-section dashed line
   className?: string
   onCross?: (
     entry: Entry | undefined,
@@ -69,11 +68,13 @@ const SectionItem = memo(function SectionItem({
   const ref = useRef<HTMLElement | null>(null)
   const slug = (entry as any).slug ?? slugify(entry.title)
 
+  // "inside" means viewport center is within the section
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ['start center', 'end center'],
   })
 
+  // trigger once when entering the section
   const wasInsideRef = useRef(false)
   useMotionValueEvent(scrollYProgress, 'change', (v) => {
     const inside = v > EPS && v < 1 - EPS
@@ -111,6 +112,7 @@ const SectionItem = memo(function SectionItem({
         />
       )}
 
+      {/* Sticky dot centered on viewport */}
       <div
         className="sticky z-20 flex justify-center"
         style={{
@@ -145,6 +147,7 @@ export default function OverviewRailSections({
 }: Props) {
   const sectionsRef = useRef<Array<HTMLElement | null>>([])
 
+  // Measure width for dashed line centering
   const measureRef = useRef<HTMLDivElement | null>(null)
   const [colWidth, setColWidth] = useState(0)
   const lineX = Math.max(0, Math.round(colWidth / 2))
@@ -172,6 +175,7 @@ export default function OverviewRailSections({
     [activeIndex, entries, onCross]
   )
 
+  // Optional initial selection
   useEffect(() => {
     if (
       typeof initialActiveIndex === 'number' &&
@@ -184,9 +188,25 @@ export default function OverviewRailSections({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialActiveIndex])
 
+  // OUT-OF-FLOW detection: when viewport center is above the first section
+  // or below the last section, we signal "no active entry".
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const { scrollYProgress: railProgress } = useScroll({
+    target: rootRef,
+    offset: ['start center', 'end center'],
+  })
+
+  useMotionValueEvent(railProgress, 'change', (v) => {
+    const outside = v <= EPS || v >= 1 - EPS
+    if (outside && activeIndex !== null) {
+      setActiveIndex(null)
+      onCross?.(undefined, -1, 0)
+    }
+  })
+
   return (
-    <div ref={measureRef} className={`relative mx-auto ${className}`}>
-      <div aria-hidden="true" role="presentation">
+    <div ref={rootRef} className={`relative mx-auto ${className}`}>
+      <div ref={measureRef} aria-hidden="true" role="presentation">
         {entries.map((entry, index) => (
           <SectionItem
             key={entry.id}

@@ -33,10 +33,50 @@ export default function PageTransition({
 
   const words = useMemo(() => title.trim().split(/\s+/), [title])
 
+  const softEase: [number, number, number, number] = [0.22, 1, 0.36, 1]
+
+  const headingVariants = {
+    hidden: {},
+    visible: {
+      transition: {
+        delayChildren: 0.25,
+        staggerChildren: 0.08,
+      },
+    },
+    exit: {},
+  } as const
+
+  const wordVariants = {
+    hidden: { opacity: 0, y: 24 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.9, ease: softEase },
+    },
+  } as const
+
+  const subtitleVariants = {
+    hidden: { opacity: 0, y: 14 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.8, delay: 0.8, ease: softEase },
+    },
+  } as const
+
+  const childrenVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.7, delay: 1.0, ease: softEase },
+    },
+  } as const
+
   return (
     <AnimatePresence
       {...(onComplete ? { onExitComplete: onComplete } : {})}
-      initial={false}
+      mode="wait"
     >
       {isVisible && (
         <motion.div
@@ -45,7 +85,7 @@ export default function PageTransition({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.6, ease: softEase }}
           role="dialog"
           aria-modal="true"
         >
@@ -56,10 +96,10 @@ export default function PageTransition({
                 backgroundImage: `url(${backgroundImage})`,
                 filter: 'blur(1px) brightness(0.35)',
               }}
-              initial={{ scale: 1.12, opacity: 0 }}
-              animate={{ scale: 1, opacity: 0.4 }}
-              exit={{ scale: 0.96, opacity: 0 }}
-              transition={{ duration: 1.2, ease: 'easeOut' }}
+              initial={{ scale: 1.06, opacity: 0 }}
+              animate={{ scale: 1, opacity: 0.35 }}
+              exit={{ scale: 0.98, opacity: 0 }}
+              transition={{ duration: 1.1, ease: softEase }}
             />
           )}
 
@@ -67,32 +107,37 @@ export default function PageTransition({
 
           <motion.div
             className="absolute inset-0 flex items-center justify-center px-6"
-            initial={{ opacity: 0, y: 80, scale: 0.98 }}
+            initial={{ opacity: 0, y: 60, scale: 0.99 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -60, scale: 1.02 }}
-            transition={{ delay: 0.2, duration: 0.8, ease: [0.2, 0, 0.2, 1] }}
+            exit={{ opacity: 0, y: -40, scale: 1.01 }}
+            transition={{ delay: 0.2, duration: 0.8, ease: softEase }}
           >
             <div className="text-center select-none">
-              <h1 className="text-white tracking-wider leading-none text-5xl md:text-7xl lg:text-8xl font-semibold">
+              <motion.h1
+                className="text-white tracking-wider leading-none text-5xl md:text-7xl lg:text-8xl font-semibold"
+                variants={headingVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
                 {words.map((w, i) => (
                   <motion.span
                     key={`${w}-${i}`}
                     className="inline-block align-top mx-1.5"
-                    initial={{ opacity: 0, y: 40 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.35 + i * 0.12 }}
+                    variants={wordVariants}
                   >
                     {w}
                   </motion.span>
                 ))}
-              </h1>
+              </motion.h1>
 
               {subtitle && (
                 <motion.p
                   className="mt-4 text-amber-400 text-xs md:text-sm tracking-widest uppercase"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.9 }}
+                  variants={subtitleVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit={{ opacity: 0 }}
                 >
                   {subtitle}
                 </motion.p>
@@ -101,9 +146,10 @@ export default function PageTransition({
               {children && (
                 <motion.div
                   className="mt-6"
-                  initial={{ opacity: 0, y: 14 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 1.0 }}
+                  variants={childrenVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit={{ opacity: 0 }}
                 >
                   {children}
                 </motion.div>
@@ -115,18 +161,19 @@ export default function PageTransition({
             {particles.map((p) => (
               <motion.div
                 key={p.id}
-                className="absolute w-px h-px bg-white rounded-full opacity-60"
+                className="absolute w-px h-px bg-white rounded-full opacity-50"
                 style={{ left: p.left, top: p.top }}
                 initial={{ opacity: 0, y: 0, scale: 0 }}
                 animate={{
-                  opacity: [0, 0.8, 0],
-                  y: [0, -200, 0],
+                  opacity: [0, 0.7, 0],
+                  y: [0, -160, 0],
                   scale: [0, 1, 0],
                 }}
                 transition={{
                   duration: p.duration,
                   delay: p.delay,
                   repeat: Infinity,
+                  ease: softEase,
                 }}
               />
             ))}
