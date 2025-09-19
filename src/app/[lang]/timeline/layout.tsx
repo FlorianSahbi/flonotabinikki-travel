@@ -1,4 +1,3 @@
-// src/app/[lang]/timeline/layout.tsx
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
@@ -14,7 +13,8 @@ import PageTransition from '@/components/ui/PageTransition'
 type VolumeLevel = 0 | 1 | 2
 const MASTER_GAINS: Record<VolumeLevel, number> = { 0: 0, 1: 0.05, 2: 0.15 }
 
-const AUDIO_TRACKS = [
+type Track = { label: string; url: string; gain: number }
+const AUDIO_TRACKS: readonly Track[] = [
   { label: 'Overview', url: '/N1.mp3', gain: 1 },
   { label: 'Detail', url: '/N2.mp3', gain: 1 },
 ] as const
@@ -43,49 +43,45 @@ function VolumeFab({
 
 function TransitionOverlay() {
   const { isMapReady } = useTimelineShell()
-
   const [minDone, setMinDone] = useState(false)
   useEffect(() => {
     const id = setTimeout(() => setMinDone(true), 2000)
     return () => clearTimeout(id)
   }, [])
-
-  const show = !isMapReady || !minDone
-  if (!show) return null
+  const visible = !isMapReady || !minDone
 
   return (
-    <PageTransition isVisible title="JAPAN ’24" subtitle="Preparing the map…" />
+    <div className={visible ? 'fixed inset-0 z-[9999]' : ''}>
+      <PageTransition
+        isVisible={visible}
+        title="JAPAN ’24"
+        subtitle="Preparing the map…"
+      />
+    </div>
   )
 }
 
 function ContentShell({ children }: { children: React.ReactNode }) {
   const { isMapReady } = useTimelineShell()
-
-  const [minDone, setMinDone] = useState(false)
-  useEffect(() => {
-    const id = setTimeout(() => setMinDone(true), 2000)
-    return () => clearTimeout(id)
-  }, [])
-  const overlayVisible = !isMapReady || !minDone
-
   return (
     <div
       className={`transition-opacity duration-500 ${
-        overlayVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        isMapReady ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
-      aria-hidden={overlayVisible}
+      aria-hidden={!isMapReady}
     >
       {children}
     </div>
   )
 }
 
-export default function TimelineLayout({
-  children,
-}: {
-  children: React.ReactNode
-  params: { lang: string }
-}) {
+/**
+ * WIDENED PROP TYPE to accept anything (incl. Next’s `params`),
+ * while we only use `children`.
+ */
+type AnyLayoutProps = { children: React.ReactNode } & Record<string, unknown>
+
+export default function TimelineLayout({ children }: AnyLayoutProps) {
   const [activeAudioTrackIndex, setActiveAudioTrackIndex] = useState(0)
   const [volumeLevel, setVolumeLevel] = useState<VolumeLevel>(2)
   const masterGain = MASTER_GAINS[volumeLevel]
@@ -111,7 +107,7 @@ export default function TimelineLayout({
         <HeadlessSyncTracks
           tracks={AUDIO_TRACKS}
           activeIndex={activeAudioTrackIndex}
-          playing={true}
+          playing
           fadeMs={450}
           masterGain={masterGain}
         />
