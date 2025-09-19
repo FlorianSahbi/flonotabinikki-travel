@@ -17,10 +17,10 @@ import { slugify } from '@/lib/slugify'
 import scrollIntoView from 'scroll-into-view-if-needed'
 import StrokeTitle from '@/components/timeline/StrokeTitle'
 import ViewportCenterLine from '@/components/timeline/ViewportCenterLine'
-import { CAM_PRESET } from '@/lib/mapbox/cameraPresets' // ⬅️ NEW
+import { CAM_PRESET } from '@/lib/mapbox/cameraPresets'
 
 export default function TimelineOverviewPage() {
-  const { easeTo, isMapReady, setDetailModeAudio } = useTimelineCtx() // ⬅️ get setDetailModeAudio
+  const { easeTo, isMapReady, setDetailModeAudio } = useTimelineCtx()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -47,9 +47,7 @@ export default function TimelineOverviewPage() {
 
   const entriesBySlug = useMemo(() => {
     const map = new Map<string, (typeof overviewCities)[number]>()
-    for (const entry of overviewCities) {
-      map.set(getSlug(entry as any), entry)
-    }
+    for (const entry of overviewCities) map.set(getSlug(entry as any), entry)
     return map
   }, [getSlug])
 
@@ -66,15 +64,15 @@ export default function TimelineOverviewPage() {
   )
 
   const [activeEntry, setActiveEntry] = useState<RailEntry | null>(null)
-
   const pendingRef = useRef<RailEntry | null>(null)
+
   const flyToEntry = useCallback(
     (entry: RailEntry) => {
       const doIt = () =>
         easeTo(
           {
             center: entry.center,
-            zoom: entry.zoom ?? CAM_PRESET.overview.zoom, // overview preset
+            zoom: entry.zoom ?? CAM_PRESET.overview.zoom,
             pitch: CAM_PRESET.overview.pitch,
             bearing: CAM_PRESET.overview.bearing,
           },
@@ -124,7 +122,6 @@ export default function TimelineOverviewPage() {
       const el =
         itemElsRef.current.get(slug) ||
         document.querySelector<HTMLElement>(`[data-city-id="${entry.id}"]`)
-
       if (el) {
         scrollIntoView(el, {
           block: 'center',
@@ -136,10 +133,9 @@ export default function TimelineOverviewPage() {
     })
   }, [searchParams, entriesBySlug])
 
-  const mediaItems = timelineEvents.slice(0, 6).map((evt) => {
-    return { kind: 'video' as const, src: evt.image }
-  })
-
+  const mediaItems = timelineEvents
+    .slice(0, 6)
+    .map((evt) => ({ kind: 'video' as const, src: evt.image }))
   const qs = searchParams?.toString()
   const suffix = qs ? `?${qs}` : ''
 
@@ -164,20 +160,53 @@ export default function TimelineOverviewPage() {
               )
             }}
           >
-            <StrokeTitle
-              title={activeEntry.title}
-              {...(activeEntry.kanji ? { kanji: activeEntry.kanji } : {})}
-              className="inline-block cursor-pointer text-white"
-              titleClassName="text-[10vw] leading-none font-extrabold tracking-tight"
-              kanjiClassName="text-[3.6vw] leading-none font-medium"
-              strokeWidthTitle={2}
-              strokeWidthKanji={1}
-              dashTitle="5100"
-              dashKanji="5100"
-              durationSec={1.0}
-              kanjiDelaySec={0.08}
-              hoverFillSec={0.45}
-            />
+            <div
+              className="relative block md:hidden"
+              style={{ width: 0, height: 0 }}
+            >
+              <div className="absolute left-1/2 top-1/2 -translate-x-[28vw] -translate-y-1/2">
+                <StrokeTitle
+                  title={activeEntry.title}
+                  fontPxTitle={64}
+                  strokeWidthTitle={2}
+                  dashTitle="5100"
+                  durationSec={0.9}
+                  hoverFillSec={0.45}
+                />
+              </div>
+
+              {/* Kanji (green box zone): move a bit right of center */}
+              {activeEntry.kanji && (
+                <div className="absolute left-1/2 top-1/2 translate-x-[28vw] -translate-y-1/2">
+                  <StrokeTitle
+                    kanji={activeEntry.kanji}
+                    fontPxKanji={44}
+                    strokeWidthKanji={1}
+                    dashKanji="5100"
+                    durationSec={0.85}
+                    kanjiDelaySec={0.06}
+                    hoverFillSec={0.45}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Desktop: horizontal centered title */}
+            <div className="hidden md:block">
+              <StrokeTitle
+                title={activeEntry.title}
+                {...(activeEntry.kanji ? { kanji: activeEntry.kanji } : {})}
+                fontPxTitle={136}
+                fontPxKanji={40}
+                strokeWidthTitle={2}
+                strokeWidthKanji={1}
+                dashTitle="5100"
+                dashKanji="5100"
+                durationSec={1.0}
+                kanjiDelaySec={0.08}
+                hoverFillSec={0.45}
+              />
+            </div>
           </Link>
         )}
       </div>

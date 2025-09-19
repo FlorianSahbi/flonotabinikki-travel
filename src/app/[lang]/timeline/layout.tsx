@@ -53,20 +53,20 @@ function Wrapper({ children }: { children: React.ReactNode }) {
         }`}
         aria-hidden={!isMapReady}
       >
-        <HeadlessSyncTracks
+        {/* <HeadlessSyncTracks
           tracks={audio.tracks}
           activeIndex={audio.activeIndex}
           playing={audio.playing}
           fadeMs={450}
           masterGain={audio.masterGain}
-        />
+        /> */}
 
         <MapCanvas
           accessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string}
           visible
         />
 
-        <VolumeFab />
+        {/* <VolumeFab /> */}
 
         {children}
       </div>
