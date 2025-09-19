@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@headlessui/react": "^2.2.7",
+    "@sindresorhus/slugify": "^3.0.0",
     "@supabase/supabase-js": "^2.54.0",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",
@@ -31,6 +32,7 @@
     "react-dom": "19.2.0-canary-8a8e9a7e-20250912",
     "react-i18next": "^15.6.1",
     "react-intersection-observer": "^9.16.0",
+    "scroll-into-view-if-needed": "^3.1.0",
     "swiper": "^11.2.10",
     "usehooks-ts": "^3.1.1",
     "zod": "^4.0.17"
