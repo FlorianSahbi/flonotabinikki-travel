@@ -29,7 +29,6 @@ export default function TimelineOverviewPage() {
     number | undefined
   >(undefined)
 
-  // slug -> DOM element (section)
   const itemElsRef = useRef(new Map<string, HTMLElement>())
 
   const getSlug = useCallback(
@@ -37,7 +36,6 @@ export default function TimelineOverviewPage() {
     []
   )
 
-  // expose refs from sections
   const handleItemRef = useCallback(
     ({ slug, el }: { id: number; slug: string; el: HTMLElement | null }) => {
       const map = itemElsRef.current
@@ -62,16 +60,13 @@ export default function TimelineOverviewPage() {
       else params.set(key, value)
       const qs = params.toString()
       const url = qs ? `${pathname}?${qs}` : pathname
-      // Remplacement "soft" via History API pour éviter un full nav
       window.history.replaceState(null, '', url)
     },
     [pathname, searchParams]
   )
 
-  // active entry (center overlay title)
   const [activeEntry, setActiveEntry] = useState<RailEntry | null>(null)
 
-  // pending fly once map is ready
   const pendingRef = useRef<RailEntry | null>(null)
 
   const flyToEntry = useCallback(
@@ -111,7 +106,6 @@ export default function TimelineOverviewPage() {
     [getSlug, setQueryParam, flyToEntry]
   )
 
-  // Restore from ?city once: set initialActiveIndex + scroll to section
   useEffect(() => {
     if (didRestoreRef.current) return
     didRestoreRef.current = true
@@ -147,7 +141,6 @@ export default function TimelineOverviewPage() {
     return { kind: 'video' as const, src: evt.image }
   })
 
-  // conserver la query courante dans le lien
   const qs = searchParams?.toString()
   const suffix = qs ? `?${qs}` : ''
 
@@ -156,7 +149,7 @@ export default function TimelineOverviewPage() {
       <div className="pointer-events-none fixed left-1/2 top-1/2 z-40 -translate-x-1/2 -translate-y-1/2 text-center">
         {activeEntry && (
           <Link
-            href={`timeline/${activeEntry.id}${suffix}`} // relatif → /[lang]/timeline/[id]
+            href={`timeline/${activeEntry.id}${suffix}`}
             scroll={false}
             className="pointer-events-auto inline-block"
           >

@@ -157,7 +157,7 @@ type Props = {
   events: TimelineEvent[]
   onActiveCameraChange?: (camera?: CameraView) => void
   onActiveEventChange?: (ev: TimelineEvent, index: number) => void
-  spacingVh?: number // hauteur d'une section (vh)
+  spacingVh?: number
   dotSizePx?: number
   strokeWidth?: number
   dash?: number
@@ -197,7 +197,6 @@ const SectionItem = memo(function SectionItem({
 }: SectionItemProps) {
   const ref = useRef<HTMLElement | null>(null)
 
-  // "inside" = la ligne centrale du viewport est dans la section
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ['start center', 'end center'],
@@ -224,7 +223,6 @@ const SectionItem = memo(function SectionItem({
       className="relative mx-auto select-none"
       style={{ height: `${sectionVh}vh`, width: 'min(92vw, 1200px)' }}
     >
-      {/* ligne pointillée centrée dans la section */}
       {colWidth > 0 && (
         <CentralLine
           colWidth={colWidth}
@@ -239,7 +237,6 @@ const SectionItem = memo(function SectionItem({
         />
       )}
 
-      {/* dot sticky centré au viewport, chevauche 1/2 diamètre aux jonctions */}
       <div
         className="sticky z-20 flex justify-center"
         style={{
@@ -259,7 +256,6 @@ const SectionItem = memo(function SectionItem({
         />
       </div>
 
-      {/* carte texte centrée verticalement dans la section (gauche/droite) */}
       <article className="absolute inset-x-0 top-1/2 -translate-y-1/2">
         <motion.div
           className={`absolute w-[42vw] max-w-[540px] rounded-2xl border border-dashed border-white/20 bg-slate-900/60 p-6 shadow-[0_10px_40px_rgba(0,0,0,0.45)] backdrop-blur ${
@@ -284,14 +280,13 @@ export default function DetailTimeline({
   events,
   onActiveCameraChange,
   onActiveEventChange,
-  spacingVh = 75, // ↙︎ on aligne avec l’overview en sections
+  spacingVh = 75,
   dotSizePx = 16,
   strokeWidth = 4,
   dash = 20,
   gap = 24,
   className = '',
 }: Props) {
-  // mesure largeur pour centrer la ligne pointillée
   const measureRef = useRef<HTMLDivElement | null>(null)
   const [colWidth, setColWidth] = useState(0)
   const lineX = Math.max(0, Math.round(colWidth / 2))
@@ -306,14 +301,12 @@ export default function DetailTimeline({
     return () => ro.disconnect()
   }, [])
 
-  // active index contrôlé par les sections (enter → active)
   const [activeIndex, setActiveIndex] = useState(0)
   const active = events[activeIndex]
   const prevIndexRef = useRef<number>(-1)
 
   const onBecomeActive = useCallback(
     (index: number) => {
-      // ✅ narrow pour TS: borne + existence
       if (index < 0 || index >= events.length) return
       const ev = events[index]
       if (!ev) return
@@ -328,7 +321,6 @@ export default function DetailTimeline({
     [activeIndex, events, onActiveCameraChange, onActiveEventChange]
   )
 
-  // preload voisin (selon direction déduite)
   useEffect(() => {
     if (!events?.length) return
     const prev = prevIndexRef.current
@@ -337,7 +329,6 @@ export default function DetailTimeline({
     preloadMedia(events[forward]?.image)
   }, [activeIndex, events])
 
-  // visibilité du rail (pour le media pin)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const { scrollYProgress } = useScroll({
     target: rootRef,
@@ -376,7 +367,6 @@ export default function DetailTimeline({
         ))}
       </div>
 
-      {/* panneau media fixé au centre du viewport */}
       <div
         className="fixed top-1/2 z-20 -translate-y-1/2"
         style={{

@@ -26,7 +26,6 @@ export function MapCanvas({
     __setMapStatus('ready')
   }, [__setMapStatus])
 
-  // ✅ Ne passer que les clés définies (exactOptionalPropertyTypes-friendly)
   const mapboxOpts = {
     accessToken,
     interactive,

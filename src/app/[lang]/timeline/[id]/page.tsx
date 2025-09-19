@@ -64,7 +64,6 @@ export default function TimelineDetailPage() {
     }
   }, [searchParams, currentCity])
 
-  // pour conserver la query (?city=...) quand on revient
   const qs = searchParams?.toString()
   const backHref = `..${qs ? `?${qs}` : ''}`
 

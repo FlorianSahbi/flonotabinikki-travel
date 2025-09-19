@@ -18,9 +18,9 @@ type Direction = -1 | 0 | 1
 
 type Props = {
   entries: Entry[]
-  sectionVh?: number // default 75
+  sectionVh?: number
   dotSizePx?: number
-  showTrackerLine?: boolean // per-section dashed line
+  showTrackerLine?: boolean
   className?: string
   onCross?: (
     entry: Entry | undefined,
@@ -74,7 +74,6 @@ const SectionItem = memo(function SectionItem({
     offset: ['start center', 'end center'],
   })
 
-  // active trigger: when entering the section (first time 0 < v < 1)
   const wasInsideRef = useRef(false)
   useMotionValueEvent(scrollYProgress, 'change', (v) => {
     const inside = v > EPS && v < 1 - EPS
@@ -146,7 +145,6 @@ export default function OverviewRailSections({
 }: Props) {
   const sectionsRef = useRef<Array<HTMLElement | null>>([])
 
-  // measure width to center dashed line
   const measureRef = useRef<HTMLDivElement | null>(null)
   const [colWidth, setColWidth] = useState(0)
   const lineX = Math.max(0, Math.round(colWidth / 2))
@@ -174,7 +172,6 @@ export default function OverviewRailSections({
     [activeIndex, entries, onCross]
   )
 
-  // optional initial selection
   useEffect(() => {
     if (
       typeof initialActiveIndex === 'number' &&

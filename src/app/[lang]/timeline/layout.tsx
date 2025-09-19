@@ -4,14 +4,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import HeadlessSyncTracks from '@/components/audio/HeadlessSyncTracks'
 import { MapCanvas } from '@/components/timeline'
-import { TimelineShellProvider } from '@/app/context/timeline/context'
+import {
+  TimelineShellProvider,
+  useTimelineShell,
+} from '@/app/context/timeline/context'
 import { VolumeX, Volume1, Volume2 } from 'lucide-react'
+import PageTransition from '@/components/ui/PageTransition'
 
 type VolumeLevel = 0 | 1 | 2
 const MASTER_GAINS: Record<VolumeLevel, number> = { 0: 0, 1: 0.05, 2: 0.15 }
 
-type Track = { label: string; url: string; gain: number }
-const AUDIO_TRACKS: readonly Track[] = [
+const AUDIO_TRACKS = [
   { label: 'Overview', url: '/N1.mp3', gain: 1 },
   { label: 'Detail', url: '/N2.mp3', gain: 1 },
 ] as const
@@ -38,10 +41,50 @@ function VolumeFab({
   )
 }
 
+function TransitionOverlay() {
+  const { isMapReady } = useTimelineShell()
+
+  const [minDone, setMinDone] = useState(false)
+  useEffect(() => {
+    const id = setTimeout(() => setMinDone(true), 2000)
+    return () => clearTimeout(id)
+  }, [])
+
+  const show = !isMapReady || !minDone
+  if (!show) return null
+
+  return (
+    <PageTransition isVisible title="JAPAN ’24" subtitle="Preparing the map…" />
+  )
+}
+
+function ContentShell({ children }: { children: React.ReactNode }) {
+  const { isMapReady } = useTimelineShell()
+
+  const [minDone, setMinDone] = useState(false)
+  useEffect(() => {
+    const id = setTimeout(() => setMinDone(true), 2000)
+    return () => clearTimeout(id)
+  }, [])
+  const overlayVisible = !isMapReady || !minDone
+
+  return (
+    <div
+      className={`transition-opacity duration-500 ${
+        overlayVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
+      }`}
+      aria-hidden={overlayVisible}
+    >
+      {children}
+    </div>
+  )
+}
+
 export default function TimelineLayout({
   children,
 }: {
   children: React.ReactNode
+  params: { lang: string }
 }) {
   const [activeAudioTrackIndex, setActiveAudioTrackIndex] = useState(0)
   const [volumeLevel, setVolumeLevel] = useState<VolumeLevel>(2)
@@ -61,32 +104,30 @@ export default function TimelineLayout({
   }, [])
 
   return (
-    <TimelineShellProvider
-      // goToDetail / backToOverview ne sont plus utilisés (navigation via <Link/>).
-      // On fournit des no-op pour respecter le type actuel du provider.
-      actions={{
-        setDetailModeAudio,
-      }}
-    >
-      <HeadlessSyncTracks
-        tracks={AUDIO_TRACKS}
-        activeIndex={activeAudioTrackIndex}
-        playing={true}
-        fadeMs={450}
-        masterGain={masterGain}
-      />
+    <TimelineShellProvider actions={{ setDetailModeAudio }}>
+      <TransitionOverlay />
 
-      <MapCanvas
-        accessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string}
-        visible
-      />
+      <ContentShell>
+        <HeadlessSyncTracks
+          tracks={AUDIO_TRACKS}
+          activeIndex={activeAudioTrackIndex}
+          playing={true}
+          fadeMs={450}
+          masterGain={masterGain}
+        />
 
-      <VolumeFab
-        level={volumeLevel}
-        onCycle={() => setVolumeLevel((v) => ((v + 1) % 3) as VolumeLevel)}
-      />
+        <MapCanvas
+          accessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string}
+          visible
+        />
 
-      {children}
+        <VolumeFab
+          level={volumeLevel}
+          onCycle={() => setVolumeLevel((v) => ((v + 1) % 3) as VolumeLevel)}
+        />
+
+        {children}
+      </ContentShell>
     </TimelineShellProvider>
   )
 }
