@@ -1,4 +1,3 @@
-// src/app/[lang]/timeline/page.tsx
 'use client'
 
 import Link from 'next/link'
@@ -11,16 +10,17 @@ import {
   overviewCities,
 } from '@/components/timeline/timeline.data'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
-import { useTimelineShell } from '@/app/context/timeline/context'
+import { usePathname, useSearchParams, useRouter } from 'next/navigation'
+import { useTimelineCtx } from '@/app/context/timeline/context'
 import { slugify } from '@/lib/slugify'
 import scrollIntoView from 'scroll-into-view-if-needed'
 import StrokeTitle from '@/components/timeline/StrokeTitle'
 import ViewportCenterLine from '@/components/timeline/ViewportCenterLine'
 
 export default function TimelineOverviewPage() {
-  const { easeTo, isMapReady } = useTimelineShell()
+  const { easeTo, isMapReady } = useTimelineCtx()
 
+  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -60,9 +60,9 @@ export default function TimelineOverviewPage() {
       else params.set(key, value)
       const qs = params.toString()
       const url = qs ? `${pathname}?${qs}` : pathname
-      window.history.replaceState(null, '', url)
+      router.replace(url, { scroll: false })
     },
-    [pathname, searchParams]
+    [pathname, searchParams, router]
   )
 
   const [activeEntry, setActiveEntry] = useState<RailEntry | null>(null)

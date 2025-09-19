@@ -3,7 +3,7 @@
 
 import { useEffect, useCallback } from 'react'
 import { useMapbox } from '@/lib/mapbox/useMapbox'
-import { useTimelineShell } from '@/app/context/timeline/context'
+import { useMapCtx } from '@/app/context/map/context'
 
 type Props = {
   accessToken: string
@@ -20,42 +20,61 @@ export function MapCanvas({
   initialView,
   interactive = false,
 }: Props) {
-  const { __setMapStatus, __setCameraFns } = useTimelineShell()
+  const { __setStatus, __setCameraFns } = useMapCtx()
 
   const onReady = useCallback(() => {
-    __setMapStatus('ready')
-  }, [__setMapStatus])
+    __setStatus('ready')
+  }, [__setStatus])
 
-  const mapboxOpts = {
-    accessToken,
-    interactive,
-    onReady,
-    ...(style !== undefined ? { style } : {}),
-    ...(initialView !== undefined ? { initialView } : {}),
-  }
+  const opts: Parameters<typeof useMapbox>[0] = { accessToken, onReady }
+  if (style !== undefined) opts.style = style
+  if (initialView !== undefined) opts.initialView = initialView
+  if (interactive !== undefined) opts.interactive = interactive
 
-  const { containerRef, api } = useMapbox(
-    mapboxOpts as Parameters<typeof useMapbox>[0]
-  )
+  const { containerRef, api } = useMapbox(opts)
 
   useEffect(() => {
-    __setMapStatus('loading')
     __setCameraFns({
       flyTo: api.flyTo,
       easeTo: api.easeTo,
       jumpTo: api.jumpTo,
     })
+    return () => {
+      __setCameraFns({
+        flyTo: () => {},
+        easeTo: () => {},
+        jumpTo: () => {},
+      })
+    }
+  }, [api.flyTo, api.easeTo, api.jumpTo, __setCameraFns])
 
+  useEffect(() => {
     const map = api.getMap()
-    const onIdle = () => __setMapStatus('idle')
-    map?.on?.('idle', onIdle)
+    if (!map) return
+
+    const onLoad = () => __setStatus('ready')
+    const onIdle = () => __setStatus('idle')
+
+    try {
+      if (map.loaded?.()) {
+        const tilesOk =
+          typeof map.areTilesLoaded === 'function'
+            ? map.areTilesLoaded()
+            : false
+        __setStatus(tilesOk ? 'idle' : 'ready')
+      }
+    } catch {
+      /* no-op */
+    }
+
+    map.once?.('load', onLoad)
+    map.on?.('idle', onIdle)
 
     return () => {
-      map?.off?.('idle', onIdle)
-      __setMapStatus('loading')
-      __setCameraFns({ flyTo: () => {}, easeTo: () => {}, jumpTo: () => {} })
+      map.off?.('idle', onIdle)
+      map.off?.('load', onLoad)
     }
-  }, [api, __setMapStatus, __setCameraFns])
+  }, [api, __setStatus])
 
   return (
     <div

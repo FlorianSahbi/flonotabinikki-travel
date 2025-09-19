@@ -1,4 +1,3 @@
-// src/app/[lang]/timeline/[id]/page.tsx
 'use client'
 
 import Link from 'next/link'
@@ -9,8 +8,9 @@ import {
   type TimelineEvent,
 } from '@/components/timeline/timeline.data'
 import { DetailTimeline, TitleHero } from '@/components/timeline'
-import { useTimelineShell } from '@/app/context/timeline/context'
+import { useTimelineCtx } from '@/app/context/timeline/context'
 import { slugify } from '@/lib/slugify'
+import ViewportCenterLine from '@/components/timeline/ViewportCenterLine'
 
 async function loadCityEvents(slug: string): Promise<TimelineEvent[]> {
   try {
@@ -35,7 +35,7 @@ export default function TimelineDetailPage() {
   const currentCity =
     overviewCities.find((c) => c.id === numericId) ?? overviewCities[0]
 
-  const { easeTo, setDetailModeAudio } = useTimelineShell()
+  const { easeTo, setDetailModeAudio } = useTimelineCtx()
 
   const searchParams = useSearchParams()
   const [events, setEvents] = useState<TimelineEvent[] | null>(null)
@@ -79,6 +79,8 @@ export default function TimelineDetailPage() {
       </Link>
 
       {currentCity && <TitleHero title={currentCity.title} heightVh={50} />}
+
+      <ViewportCenterLine horizontal={false} />
 
       {Array.isArray(events) && events.length > 0 && (
         <DetailTimeline
