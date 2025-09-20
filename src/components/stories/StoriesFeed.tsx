@@ -1,7 +1,6 @@
-// src/components/stories/StoriesFeed.tsx
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel } from 'swiper/modules'
 import 'swiper/css'
@@ -21,6 +20,8 @@ import {
   mapPointsFromItems,
   centerFromItems,
 } from './feed'
+
+import { useExploreStore } from '@/lib/state/useExploreStore'
 
 export default function StoriesFeed({
   initialId,
@@ -46,6 +47,14 @@ export default function StoriesFeed({
       onPlay: playForIndex,
     })
 
+  const setFocus = useExploreStore((s) => s.setFocus)
+  const loadContext = useExploreStore((s) => s.loadContext)
+
+  useEffect(() => {
+    if (initialId)
+      setFocus(initialId, { fetch: false, syncUrl: true, source: 'stories' })
+  }, [initialId, setFocus])
+
   if (!items.length) {
     return <div className="p-6 text-white">No videos.</div>
   }
@@ -62,7 +71,7 @@ export default function StoriesFeed({
   }
 
   return (
-    <div className="h-[100dvh] w-screen bg-black">
+    <div className="h-full w-full bg-black overflow-hidden">
       <MiniMapOverlay
         ref={miniMapRef}
         initialPoints={initialPoints}
@@ -78,13 +87,21 @@ export default function StoriesFeed({
         resistanceRatio={0.85}
         initialSlide={initialIndex}
         onSwiper={(instance) => (swiperRef.current = instance)}
-        onAfterInit={(instance) => playForIndex(instance.activeIndex)}
-        onSlideChange={(instance) => {
+        onAfterInit={async (instance) => {
+          const current = items[instance.activeIndex]?.id ?? initialId
+          await loadContext(current) // no force, déjà en cache
+          setFocus(current, { fetch: false, syncUrl: true, source: 'stories' })
+          playForIndex(instance.activeIndex)
+        }}
+        onSlideChange={async (instance) => {
           handleSlideChange(instance.activeIndex)
+          const current = items[instance.activeIndex]?.id ?? initialId
+          await loadContext(current) // no force
+          setFocus(current, { fetch: false, syncUrl: true, source: 'stories' })
           if (instance.activeIndex >= items.length - 2) appendAfter()
           if (instance.activeIndex <= 1) prependBefore()
         }}
-        className="h-full"
+        className="h-full w-full"
         threshold={10}
         longSwipes
         longSwipesRatio={0.3}
@@ -99,8 +116,8 @@ export default function StoriesFeed({
           const label = dateLabel(item.recorded_at)
 
           return (
-            <SwiperSlide key={item.id}>
-              <div className="relative h-full w-full">
+            <SwiperSlide key={item.id} className="!h-full !w-full">
+              <div className="relative h-full w-full overflow-hidden">
                 {item.kind === 'video' ? (
                   <VideoSlide
                     item={item}

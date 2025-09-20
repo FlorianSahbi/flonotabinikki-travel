@@ -1,57 +1,86 @@
-// src/components/explore/ExploreMap.tsx
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Tables } from '@/types/supabase'
-import { useRouter } from 'next/navigation'
+import { useExploreStore, useFocusId } from '@/lib/state/useExploreStore'
 
 type Props = {
   points: Pick<Tables<'videos'>, 'id' | 'lat' | 'lng'>[]
+  /** si fourni, c’est l’orchestrateur qui gère le fetch + setFocus (split) */
+  onSelectId?: (id: string) => void
+  /** "split" = pas de bouton; "mobile" = bouton View story visible */
+  variant?: 'split' | 'mobile'
 }
 
-export default function ExploreMap({ points }: Props) {
+export default function ExploreMap({
+  points,
+  onSelectId,
+  variant = 'mobile',
+}: Props) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
-  const router = useRouter()
-  const [focusId, setFocusId] = useState<string | null>(null)
+  const pointsRef = useRef<Props['points']>(points)
 
+  const setFocus = useExploreStore((s) => s.setFocus)
+  const setViewport = useExploreStore((s) => s.setViewport)
+  const loadContext = useExploreStore((s) => s.loadContext)
+  const focusId = useFocusId()
+
+  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+  const tokenMissing = !token
+
+  // garder la dernière version des points
   useEffect(() => {
-    if (!mapContainerRef.current) return
+    pointsRef.current = points
+  }, [points])
 
-    mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!
+  // util: pousser les points dans la source si prête
+  const setVideosData = () => {
+    const map = mapRef.current
+    if (!map) return
+    const src = map.getSource('videos') as mapboxgl.GeoJSONSource | undefined
+    if (!src) return
+    const data = {
+      type: 'FeatureCollection' as const,
+      features: (pointsRef.current ?? []).map((p) => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [p.lng!, p.lat!] },
+        properties: { id: p.id },
+      })),
+    }
+    src.setData(data)
+  }
 
-    const mapInstance = new mapboxgl.Map({
+  // init map (1 seule fois)
+  useEffect(() => {
+    if (!mapContainerRef.current || tokenMissing) return
+    mapboxgl.accessToken = token!
+
+    const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/standard',
+      style: 'mapbox://styles/mapbox/streets-v12',
       center: [138.0, 37.0],
       zoom: 4,
-      pitch: 0,
-      bearing: 0,
       attributionControl: false,
     })
-    mapRef.current = mapInstance
+    mapRef.current = map
 
-    mapInstance.on('load', () => {
-      const featureCollection = {
-        type: 'FeatureCollection' as const,
-        features: points.map((point) => ({
-          type: 'Feature' as const,
-          geometry: {
-            type: 'Point' as const,
-            coordinates: [point.lng!, point.lat!],
-          },
-          properties: { id: point.id },
-        })),
-      }
+    map.on('error', (e) => console.error('[mapbox] error', e?.error))
 
-      mapInstance.addSource('videos', {
+    map.on('moveend', () => {
+      const c = map.getCenter()
+      setViewport({ lng: c.lng, lat: c.lat, zoom: map.getZoom() })
+    })
+
+    map.on('load', () => {
+      map.addSource('videos', {
         type: 'geojson',
-        data: featureCollection,
+        data: { type: 'FeatureCollection', features: [] },
       })
 
-      mapInstance.addLayer({
+      map.addLayer({
         id: 'videos-points',
         type: 'circle',
         source: 'videos',
@@ -63,7 +92,7 @@ export default function ExploreMap({ points }: Props) {
         },
       })
 
-      mapInstance.addLayer({
+      map.addLayer({
         id: 'active-point',
         type: 'circle',
         source: 'videos',
@@ -76,88 +105,117 @@ export default function ExploreMap({ points }: Props) {
         },
       })
 
-      const setActivePoint = (id: string | null) => {
-        mapInstance.setFilter(
-          'active-point',
-          id ? ['==', ['get', 'id'], id] : ['==', ['get', 'id'], '']
-        )
+      // injecter les points actuels
+      setVideosData()
+
+      // focus initial via URL (le split s’occupe sinon de l’auto-focus)
+      const initialUrlFocus = new URL(window.location.href).searchParams.get(
+        'focus'
+      )
+      if (initialUrlFocus) {
+        map.setFilter('active-point', ['==', ['get', 'id'], initialUrlFocus])
+        const p = pointsRef.current.find((pt) => pt.id === initialUrlFocus)
+        if (p) map.jumpTo({ center: [p.lng!, p.lat!], zoom: 7.5 })
       }
 
-      const currentUrl = new URL(window.location.href)
-      const initialFocusId = currentUrl.searchParams.get('focus')
-      if (initialFocusId) {
-        setFocusId(initialFocusId)
-        setActivePoint(initialFocusId)
-        const focusedPoint = points.find((point) => point.id === initialFocusId)
-        if (focusedPoint) {
-          mapInstance.jumpTo({
-            center: [focusedPoint.lng!, focusedPoint.lat!],
-            zoom: 7.5,
-          })
-        }
-      }
-
-      mapInstance.on('click', 'videos-points', (event) => {
+      // clic sur point
+      map.on('click', 'videos-points', async (event) => {
         const feature = event.features?.[0]
         const videoId = feature?.properties?.id as string | undefined
         if (!videoId) return
 
-        const params = new URLSearchParams(window.location.search)
-        params.set('focus', videoId)
-        window.history.replaceState(null, '', `?${params.toString()}`)
-        setFocusId(videoId)
-        setActivePoint(videoId)
+        if (onSelectId) {
+          // MODE SPLIT : l’orchestrateur gère le fetch + setFocus
+          onSelectId(videoId)
+        } else {
+          // MODE MOBILE : on fait le fetch forcé ici puis on setFocus
+          await loadContext(videoId, { force: true })
+          setFocus(videoId, { fetch: false, syncUrl: true, source: 'map' })
+        }
 
         const geometry = feature?.geometry
-        if (geometry && geometry.type === 'Point') {
+        if (geometry?.type === 'Point') {
           const [lng, lat] = geometry.coordinates as [number, number]
-          mapInstance.easeTo({
+          map.easeTo({
             center: [lng, lat],
-            zoom: Math.max(mapInstance.getZoom(), 7.5),
+            zoom: Math.max(map.getZoom(), 7.5),
             duration: 400,
           })
         }
       })
 
-      mapInstance.on('mouseenter', 'videos-points', () => {
-        mapInstance.getCanvas().style.cursor = 'pointer'
-      })
-      mapInstance.on('mouseleave', 'videos-points', () => {
-        mapInstance.getCanvas().style.cursor = ''
-      })
+      map.on(
+        'mouseenter',
+        'videos-points',
+        () => (map.getCanvas().style.cursor = 'pointer')
+      )
+      map.on(
+        'mouseleave',
+        'videos-points',
+        () => (map.getCanvas().style.cursor = '')
+      )
     })
 
-    return () => mapInstance.remove()
-  }, [router, points])
+    return () => map.remove()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokenMissing, token, setViewport, loadContext, setFocus, onSelectId])
 
+  // update des points même si 'load' pas encore passé
   useEffect(() => {
-    const mapInstance = mapRef.current
-    if (!mapInstance) return
-    const videosSource = mapInstance.getSource('videos') as
-      | mapboxgl.GeoJSONSource
-      | undefined
-    if (!videosSource) return
-    videosSource.setData({
-      type: 'FeatureCollection',
-      features: points.map((point) => ({
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [point.lng!, point.lat!] },
-        properties: { id: point.id },
-      })),
-    })
+    const map = mapRef.current
+    if (!map) return
+
+    const trySet = () => {
+      const src = map.getSource('videos') as mapboxgl.GeoJSONSource | undefined
+      if (src) setVideosData()
+    }
+
+    if (map.isStyleLoaded()) {
+      trySet()
+    } else {
+      const onLoad = () => {
+        trySet()
+        map.off('load', onLoad)
+      }
+      map.on('load', onLoad)
+    }
   }, [points])
+
+  // highlight + recentrage doux quand le focus change (stories, auto-focus…)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !map.getLayer('active-point')) return
+
+    map.setFilter(
+      'active-point',
+      focusId ? ['==', ['get', 'id'], focusId] : ['==', ['get', 'id'], '']
+    )
+
+    if (focusId) {
+      const p = pointsRef.current.find((pt) => pt.id === focusId)
+      if (p) {
+        const current = map.getCenter()
+        const dist = Math.hypot(current.lng - p.lng!, current.lat - p.lat!)
+        if (dist > 0.0005) {
+          map.easeTo({
+            center: [p.lng!, p.lat!],
+            zoom: Math.max(map.getZoom(), 7.5),
+            duration: 400,
+          })
+        }
+      }
+    }
+  }, [focusId])
 
   return (
     <>
-      <div ref={mapContainerRef} className="h-dvh w-screen" />
-      {focusId && (
-        <button
-          onClick={() => router.push(`/stories/${focusId}`)}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-orange-500 text-white px-4 py-2 shadow-lg hover:bg-orange-600 transition"
-        >
-          View story
-        </button>
+      {tokenMissing && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 text-white">
+          NEXT_PUBLIC_MAPBOX_TOKEN manquant
+        </div>
       )}
+      <div ref={mapContainerRef} className="h-full w-full min-h-[300px]" />
+      {/* Pas de bouton ici en split; en mobile tu peux réactiver si besoin */}
     </>
   )
 }
