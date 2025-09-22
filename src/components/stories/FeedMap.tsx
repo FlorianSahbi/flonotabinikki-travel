@@ -1,44 +1,50 @@
 'use client'
 
+import { useEffect } from 'react'
 import type { FeatureCollection, Point } from 'geojson'
 import { useMapbox } from '@/lib/mapbox/useMapbox'
 import { useAttachMapContext } from '@/lib/mapbox/useAttachMapContext'
 import VideosPointsLayer from '@/components/map-layers/VideosPointsLayer'
+import { easeToPreset } from '@/lib/mapbox/applyPreset'
 
 const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!
 
-export default function ExploreMap({
+export default function FeedMap({
   data,
   activeId,
-  onSelectId,
+  center,
   className,
 }: {
   data: FeatureCollection<Point, { id: string }>
   activeId?: string | null
-  onSelectId?: (id: string) => void
+  center: [number, number]
   className?: string
 }) {
   const { containerRef, api } = useMapbox({
     accessToken: TOKEN,
-    interactive: true,
+    interactive: false,
   })
   useAttachMapContext(api)
 
+  useEffect(() => {
+    const [lng, lat] = center || [0, 0]
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
+    easeToPreset(api as any, [lng, lat], 'feed', 350)
+  }, [center, api])
+
   return (
-    <div className={className ?? 'h-full w-full relative'}>
+    <div
+      className={`h-32 w-32 rounded-xl overflow-hidden relative ${className ?? ''}`}
+      aria-label="Mini-map"
+    >
       <div ref={containerRef} className="absolute inset-0" />
       <VideosPointsLayer
         getMap={api.getMap}
         data={data}
         activeId={activeId ?? null}
-        onClick={(id, [lng, lat]) => {
-          onSelectId?.(id)
-          api.easeTo(
-            { center: [lng, lat], bearing: 0, pitch: 50 },
-            { duration: 400 }
-          )
-        }}
-        radius={5}
+        sourceId="videos-feed"
+        layerId="videos-points-feed"
+        radius={6}
         strokeWidth={1}
       />
     </div>

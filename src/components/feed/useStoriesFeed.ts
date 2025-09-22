@@ -2,9 +2,7 @@
 'use client'
 
 import { useCallback, useMemo, useRef, useState, MutableRefObject } from 'react'
-import { useParams } from 'next/navigation'
 import { FeedItem, feedGetItemsAfter, feedGetItemsBefore } from '@/lib/feed'
-import type { MiniMapOverlayRef } from '@/components/stories/MiniMapOverlay'
 
 type SwiperLike = {
   activeIndex: number
@@ -15,16 +13,13 @@ export function useStoriesFeed({
   initialId,
   initialItems,
   swiperRef,
-  miniMapRef,
   onPlay,
 }: {
   initialId: string
   initialItems: FeedItem[]
   swiperRef: MutableRefObject<SwiperLike | null>
-  miniMapRef: MutableRefObject<MiniMapOverlayRef | null>
   onPlay?: (index: number) => void
 }) {
-  const { lang } = useParams<{ lang?: string }>()
   const [items, setItems] = useState<FeedItem[]>(initialItems)
   const idsRef = useRef(new Set(initialItems.map((v) => v.id)))
   const loadingNextRef = useRef(false)
@@ -37,16 +32,6 @@ export function useStoriesFeed({
         0
       ),
     [items, initialId]
-  )
-
-  const updateMiniMapPoints = useCallback(
-    (arr: FeedItem[]) => {
-      const pts = arr
-        .filter((x) => x.lat != null && x.lng != null)
-        .map((x) => ({ id: x.id, lat: x.lat!, lng: x.lng! }))
-      miniMapRef.current?.updatePoints(pts)
-    },
-    [miniMapRef]
   )
 
   const appendAfter = useCallback(async () => {
@@ -62,16 +47,12 @@ export function useStoriesFeed({
       const fresh = more.filter((v) => !idsRef.current.has(v.id))
       if (fresh.length) {
         fresh.forEach((v) => idsRef.current.add(v.id))
-        setItems((prev) => {
-          const updated = [...prev, ...fresh]
-          updateMiniMapPoints(updated)
-          return updated
-        })
+        setItems((prev) => [...prev, ...fresh])
       }
     } finally {
       loadingNextRef.current = false
     }
-  }, [items, updateMiniMapPoints])
+  }, [items])
 
   const prependBefore = useCallback(async () => {
     if (loadingPrevRef.current || !items.length) return
@@ -88,11 +69,7 @@ export function useStoriesFeed({
       if (fresh.length) {
         const active = sw?.activeIndex ?? 0
         fresh.forEach((v) => idsRef.current.add(v.id))
-        setItems((prev) => {
-          const updated = [...fresh, ...prev]
-          updateMiniMapPoints(updated)
-          return updated
-        })
+        setItems((prev) => [...fresh, ...prev])
         requestAnimationFrame(() => {
           sw?.slideTo(active + fresh.length, 0)
         })
@@ -100,23 +77,13 @@ export function useStoriesFeed({
     } finally {
       loadingPrevRef.current = false
     }
-  }, [items, swiperRef, updateMiniMapPoints])
+  }, [items, swiperRef])
 
   const handleSlideChange = useCallback(
     (idx: number) => {
       onPlay?.(idx)
-
-      const current = items[idx]
-      if (current?.id) {
-        const base = lang ? `/${lang}` : ''
-        window.history.replaceState(null, '', `${base}/stories/${current.id}`)
-        miniMapRef.current?.setActive(current.id)
-      }
-      if (current?.lat != null && current?.lng != null) {
-        miniMapRef.current?.flyTo(current.lng!, current.lat!)
-      }
     },
-    [items, onPlay, miniMapRef, lang]
+    [onPlay]
   )
 
   return {

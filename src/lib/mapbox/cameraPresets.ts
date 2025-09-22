@@ -10,4 +10,9 @@ export const CAM_PRESET = {
     pitch: 45,
     bearing: 30,
   },
+  feed: {
+    zoom: 9.5,
+    pitch: 40,
+    bearing: -10,
+  },
 } as const

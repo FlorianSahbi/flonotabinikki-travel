@@ -55,9 +55,8 @@ export default function TimelineDetailPage() {
       },
       { duration: 600, keepBearingOnViewChange: false }
     )
-  }, [isMapReady, currentCity?.id, easeTo])
+  }, [isMapReady, currentCity?.id, easeTo, currentCity])
 
-  // Charger les events selon ?city (comme avant)
   useEffect(() => {
     let cancelled = false
     const cityFromUrl = searchParams.get('city')
