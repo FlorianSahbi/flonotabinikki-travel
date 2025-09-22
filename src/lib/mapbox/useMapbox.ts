@@ -1,4 +1,3 @@
-// src/lib/mapbox/useMapbox.ts
 'use client'
 
 import { useRef, useEffect, useMemo } from 'react'
@@ -6,18 +5,10 @@ import { useReducedMotion } from 'framer-motion'
 import { normalizeCamera, type View } from './utils'
 import type { CameraFns, MoveOpts } from '@/types/app'
 
-/**
- * Ultra-lean Mapbox hook
- * - Only instantiates the map and exposes camera helpers.
- * - No external "ready" contract here; lifecycle is handled by MapContext + MapCanvas.
- * - Visual style & initial state are owned by Mapbox Studio.
- */
-
 const DEFAULT_STYLE =
   process.env.NEXT_PUBLIC_MAPBOX_STYLE_URL ||
   'mapbox://styles/mapbox/satellite-v9'
 
-// Safe defaults (Studio usually overrides these)
 const DEFAULT_VIEW: Required<View> = {
   center: [134, 35],
   zoom: 4,
@@ -29,11 +20,13 @@ const DEFAULT_DURATION = 1200
 
 type UseMapboxProps = {
   accessToken: string
+  interactive?: boolean
 }
 
-export function useMapbox({ accessToken }: UseMapboxProps) {
+export function useMapbox({ accessToken, interactive }: UseMapboxProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<any>(null)
+  const resizeObserverRef = useRef<ResizeObserver | null>(null)
 
   const reduceMotion = useReducedMotion()
 
@@ -45,7 +38,6 @@ export function useMapbox({ accessToken }: UseMapboxProps) {
       if (!mounted || !containerRef.current) return
 
       if (!accessToken || !accessToken.trim()) {
-        // Hard fail in dev to avoid silent misconfigurations
         if (process.env.NODE_ENV !== 'production') {
           console.error(
             '[useMapbox] Missing Mapbox token. Set NEXT_PUBLIC_MAPBOX_TOKEN.'
@@ -56,7 +48,6 @@ export function useMapbox({ accessToken }: UseMapboxProps) {
 
       mapboxgl.default.accessToken = accessToken
 
-      // Studio can override; we still provide sane defaults
       const iv = DEFAULT_VIEW
 
       const map = new mapboxgl.default.Map({
@@ -66,30 +57,86 @@ export function useMapbox({ accessToken }: UseMapboxProps) {
         zoom: iv.zoom,
         bearing: iv.bearing,
         pitch: iv.pitch,
-        interactive: false, // camera controlled by the app
         attributionControl: false,
         antialias: false,
+        interactive: interactive ?? false,
       })
       mapRef.current = map
+
+      const kickResizes = () => {
+        try {
+          map.resize()
+          requestAnimationFrame(() => {
+            try {
+              map.resize()
+              setTimeout(() => {
+                try {
+                  map.resize()
+                } catch {}
+              }, 0)
+            } catch {}
+          })
+        } catch {}
+      }
+
+      map.on('load', kickResizes)
+      map.on('styledata', () => {
+        try {
+          map.resize()
+        } catch {}
+      })
+      map.on('idle', () => {
+        try {
+          map.resize()
+        } catch {}
+      })
+
+      if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+        const ro = new ResizeObserver(() => {
+          const m = mapRef.current
+          if (!m) return
+          try {
+            m.resize()
+          } catch {}
+        })
+        ro.observe(containerRef.current)
+        resizeObserverRef.current = ro
+      }
 
       map.on('error', (e: any) => {
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[useMapbox] map error:', e?.error || e)
         }
       })
+
+      requestAnimationFrame(() => {
+        const m = mapRef.current
+        if (!m) return
+        try {
+          m.resize()
+        } catch {}
+      })
     })()
 
     return () => {
       mounted = false
-      if (mapRef.current) {
-        // Let remove() throw in dev if something is wrong with teardown
-        mapRef.current.remove()
-        mapRef.current = null
+      if (resizeObserverRef.current) {
+        try {
+          resizeObserverRef.current.disconnect()
+        } catch {}
+        resizeObserverRef.current = null
+      }
+      const map = mapRef.current
+      if (map) {
+        try {
+          map.remove()
+        } finally {
+          mapRef.current = null
+        }
       }
     }
-  }, [accessToken])
+  }, [accessToken, interactive])
 
-  // Factory for movement methods (flyTo/easeTo/jumpTo) with reduced-motion awareness
   const createMove =
     <K extends 'flyTo' | 'easeTo' | 'jumpTo'>(method: K) =>
     (v: View, opts?: MoveOpts) => {
@@ -112,7 +159,6 @@ export function useMapbox({ accessToken }: UseMapboxProps) {
       ;(map as any)[method](payload)
     }
 
-  // Re-use shared CameraFns surface + add a lightweight getter (no new global type)
   const api = useMemo<CameraFns & { getMap: () => any | null }>(
     () => ({
       flyTo: createMove('flyTo'),
@@ -120,11 +166,11 @@ export function useMapbox({ accessToken }: UseMapboxProps) {
       jumpTo: createMove('jumpTo'),
       getMap: () => mapRef.current,
     }),
-    [reduceMotion]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [reduceMotion, createMove]
   )
 
   return { containerRef, api }
 }
 
-// Re-export for convenience; source of truth remains in ./utils and @/types/app
 export type { View }

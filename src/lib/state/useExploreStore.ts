@@ -1,30 +1,28 @@
 'use client'
 
 import { create } from 'zustand'
-import { shallow } from 'zustand/shallow'
 import type { FeedItem } from '@/lib/feed'
+import type { View as Viewport } from '@/lib/mapbox/useMapbox'
 import { supabase } from '@/lib/supabaseClient'
 
-type Viewport = { lng: number; lat: number; zoom: number }
-type FocusSource = 'map' | 'stories' | 'system'
+export type FocusSource = 'system' | 'map' | 'stories'
 
 type State = {
   focusId: string | null
   focusSource: FocusSource
-  contextById: Record<string, FeedItem[] | undefined>
-  viewport?: Viewport
+  contextById: Record<string, FeedItem[]>
+  viewport: Viewport | null
   loading: boolean
 }
 
 type Actions = {
   setFocus: (
     id: string | null,
-    opts?: { fetch?: boolean; syncUrl?: boolean; source?: FocusSource }
+    opts?: { fetch?: boolean; source?: FocusSource }
   ) => void
-  loadContext: (id: string, opts?: { force?: boolean }) => Promise<void>
   seedContext: (id: string, items: FeedItem[]) => void
-  hydrateFromUrl: () => void
-  setViewport: (v?: Viewport) => void
+  loadContext: (id: string, opts?: { force?: boolean }) => Promise<void>
+  setViewport: (v: Viewport | null) => void
   getContextFor: (id: string) => FeedItem[] | undefined
 }
 
@@ -32,61 +30,59 @@ export const useExploreStore = create<State & Actions>((set, get) => ({
   focusId: null,
   focusSource: 'system',
   contextById: {},
-  viewport: undefined,
+  viewport: null,
   loading: false,
 
   setFocus: (id, opts) => {
-    const { fetch = true, syncUrl = true, source = 'system' } = opts ?? {}
-    set({ focusId: id ?? null, focusSource: source })
-
-    if (syncUrl) {
-      const url = new URL(window.location.href)
-      if (id) url.searchParams.set('focus', id)
-      else url.searchParams.delete('focus')
-      window.history.replaceState(null, '', url.toString())
+    const nextSource: FocusSource = opts?.source ?? get().focusSource
+    set({ focusId: id, focusSource: nextSource })
+    if (opts?.fetch && id) {
+      void get().loadContext(id)
     }
-
-    if (id && fetch) void get().loadContext(id)
   },
 
-  async loadContext(id: string, opts?: { force?: boolean }) {
-    const force = !!opts?.force
+  seedContext: (id, items) => {
+    if (!id) return
+    set((state) => ({
+      contextById: { ...state.contextById, [id]: items ?? [] },
+    }))
+  },
+
+  loadContext: async (id, opts) => {
+    if (!id) return
     const cached = get().contextById[id]
-    if (!force && cached) return
+    if (cached && !opts?.force) return
+
     set({ loading: true })
-    const { data, error } = await supabase.rpc('feed_get_context_items', {
-      target_id: id,
-      range_size: 3,
-    })
-    if (!error && data) {
-      set((s) => ({
-        contextById: { ...s.contextById, [id]: data as FeedItem[] },
+    try {
+      const { data, error } = await supabase.rpc('feed_get_context_items', {
+        target_id: id,
+        range_size: 3,
+      })
+      if (error) {
+        set({ loading: false })
+        return
+      }
+      const items = Array.isArray(data) ? (data as FeedItem[]) : []
+      set((state) => ({
+        contextById: { ...state.contextById, [id]: items },
         loading: false,
       }))
-    } else {
+    } catch {
       set({ loading: false })
     }
   },
 
-  seedContext: (id, items) =>
-    set((s) => ({ contextById: { ...s.contextById, [id]: items } })),
+  setViewport: (v) => set({ viewport: v }),
 
-  hydrateFromUrl: () => {
-    const id = new URL(window.location.href).searchParams.get('focus')
-    if (id)
-      get().setFocus(id, { fetch: true, syncUrl: false, source: 'system' })
-  },
-
-  setViewport: (v) => set({ viewport: v ?? undefined }),
-
-  getContextFor: (id: string) => get().contextById[id],
+  getContextFor: (id) => get().contextById[id],
 }))
 
 export const useFocusId = () => useExploreStore((s) => s.focusId)
 export const useFocusSource = () => useExploreStore((s) => s.focusSource)
-export const useContextForFocus = () =>
-  useExploreStore(
-    (s) => (s.focusId ? s.contextById[s.focusId] : undefined),
-    shallow
-  )
-export const useLoading = () => useExploreStore((s) => s.loading)
+
+export const useContextForFocus = () => {
+  const focusId = useExploreStore((s) => s.focusId)
+  const contextById = useExploreStore((s) => s.contextById)
+  return focusId ? contextById[focusId] : undefined
+}

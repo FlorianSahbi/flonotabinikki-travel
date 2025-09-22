@@ -1,3 +1,4 @@
+// src/components/stories/StoriesFeed.tsx
 'use client'
 
 import { useEffect, useRef } from 'react'
@@ -5,35 +6,31 @@ import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel } from 'swiper/modules'
 import 'swiper/css'
 
-import MiniMapOverlay, {
-  MiniMapOverlayRef,
-} from '@/components/stories/MiniMapOverlay'
 import { FeedItem } from '@/lib/feed'
-import { useRouter, useParams } from 'next/navigation'
-
-import {
-  ClusterSlide,
-  VideoSlide,
-  useStoriesFeed,
-  useVideoPlaylist,
-  dateLabel,
-  mapPointsFromItems,
-  centerFromItems,
-} from './feed'
-
+import { ClusterSlide, VideoSlide, dateLabel } from '../feed'
+import { useStoriesFeed } from '@/components/feed/useStoriesFeed'
 import { useExploreStore } from '@/lib/state/useExploreStore'
+import { useVideoPlaylist } from '../feed'
+import FeedMap from '@/components/stories/FeedMap'
+import type { FeatureCollection, Point } from 'geojson'
+import { useMapCtx } from '@/app/context/map/context'
 
 export default function StoriesFeed({
   initialId,
   initialItems,
+  videosGeoJSON,
+  showMiniMap = true,
+  controlExternalMap = false,
 }: {
   initialId: string
   initialItems: FeedItem[]
+  videosGeoJSON: FeatureCollection<Point, { id: string }>
+  showMiniMap?: boolean
+  controlExternalMap?: boolean
 }) {
-  const router = useRouter()
-  const { lang } = useParams<{ lang?: string }>()
   const swiperRef = useRef<any>(null)
-  const miniMapRef = useRef<MiniMapOverlayRef>(null)
+
+  const mapCtx = useMapCtx()
 
   const { setVideoRefAt, playForIndex, isMuted, toggleSound } =
     useVideoPlaylist()
@@ -43,7 +40,6 @@ export default function StoriesFeed({
       initialId,
       initialItems,
       swiperRef,
-      miniMapRef,
       onPlay: playForIndex,
     })
 
@@ -51,33 +47,39 @@ export default function StoriesFeed({
   const loadContext = useExploreStore((s) => s.loadContext)
 
   useEffect(() => {
-    if (initialId)
-      setFocus(initialId, { fetch: false, syncUrl: true, source: 'stories' })
+    if (initialId) setFocus(initialId, { fetch: false, source: 'stories' })
   }, [initialId, setFocus])
 
-  if (!items.length) {
-    return <div className="p-6 text-white">No videos.</div>
+  const centerForIndex = (idx: number): [number, number] => {
+    const cur = items[idx]
+    return [Number(cur?.lng ?? 0), Number(cur?.lat ?? 0)]
   }
 
-  const initialPoints = mapPointsFromItems(items)
-  const [centerLng, centerLat] = centerFromItems(items, initialIndex)
-
-  const goToExplore = () => {
-    const swiper = swiperRef.current as { activeIndex: number } | null
-    const activeIndex = swiper?.activeIndex ?? initialIndex
-    const currentId = items[activeIndex]?.id ?? initialId
-    const base = lang ? `/${lang}` : ''
-    router.push(`${base}/explore?focus=${encodeURIComponent(currentId)}`)
+  const doEaseTo = (idx: number) => {
+    if (!controlExternalMap) return
+    const [lng, lat] = centerForIndex(idx)
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
+    mapCtx.easeTo(
+      { center: [lng, lat], bearing: 0, pitch: 50 },
+      { duration: 400 }
+    )
   }
+
+  const activeIndex = () => swiperRef.current?.activeIndex ?? initialIndex
+  const activeId = items[activeIndex()]?.id ?? null
+  const activeCenter = centerForIndex(activeIndex())
 
   return (
-    <div className="h-full w-full bg-black overflow-hidden">
-      <MiniMapOverlay
-        ref={miniMapRef}
-        initialPoints={initialPoints}
-        center={[centerLng, centerLat]}
-        onClick={goToExplore}
-      />
+    <div className="relative h-full w-full bg-black overflow-hidden">
+      {showMiniMap && (
+        <div className="pointer-events-none absolute right-3 top-3 z-[60] md:right-4 md:top-4">
+          <FeedMap
+            data={videosGeoJSON}
+            activeId={activeId}
+            center={activeCenter}
+          />
+        </div>
+      )}
 
       <Swiper
         modules={[Mousewheel]}
@@ -86,18 +88,29 @@ export default function StoriesFeed({
         mousewheel={{ forceToAxis: true, sensitivity: 1 }}
         resistanceRatio={0.85}
         initialSlide={initialIndex}
-        onSwiper={(instance) => (swiperRef.current = instance)}
-        onAfterInit={async (instance) => {
-          const current = items[instance.activeIndex]?.id ?? initialId
-          await loadContext(current) // no force, déjà en cache
-          setFocus(current, { fetch: false, syncUrl: true, source: 'stories' })
-          playForIndex(instance.activeIndex)
+        onSwiper={(instance) => {
+          swiperRef.current = instance
+          const current = items[instance.activeIndex]
+          if (current) {
+            setFocus(current.id, { fetch: false, source: 'stories' })
+            if (controlExternalMap) doEaseTo(instance.activeIndex)
+          }
+        }}
+        onAfterInit={(instance) => {
+          const current = items[instance.activeIndex]
+          if (current) playForIndex(instance.activeIndex)
         }}
         onSlideChange={async (instance) => {
           handleSlideChange(instance.activeIndex)
-          const current = items[instance.activeIndex]?.id ?? initialId
-          await loadContext(current) // no force
-          setFocus(current, { fetch: false, syncUrl: true, source: 'stories' })
+          const current = items[instance.activeIndex] ?? items[0]
+          if (current) {
+            try {
+              await loadContext(current.id)
+            } finally {
+              setFocus(current.id, { fetch: false, source: 'stories' })
+            }
+          }
+          if (controlExternalMap) doEaseTo(instance.activeIndex)
           if (instance.activeIndex >= items.length - 2) appendAfter()
           if (instance.activeIndex <= 1) prependBefore()
         }}

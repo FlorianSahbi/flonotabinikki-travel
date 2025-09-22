@@ -1,3 +1,4 @@
+// src/components/stories/DesktopRedirect.tsx
 'use client'
 
 import { useEffect } from 'react'
@@ -11,10 +12,10 @@ export default function DesktopRedirect({
   lang?: string
 }) {
   const router = useRouter()
-
+  console.log('okoko')
   useEffect(() => {
-    // si écran ≥ md (768px), redirige vers /explore?focus=...
     const isDesktop = window.matchMedia('(min-width: 768px)').matches
+    console.log(isDesktop, focusId)
     if (isDesktop && focusId) {
       const base = lang ? `/${lang}` : ''
       router.replace(`${base}/explore?focus=${encodeURIComponent(focusId)}`)
