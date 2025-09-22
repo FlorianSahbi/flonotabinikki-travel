@@ -6,6 +6,7 @@ import type { View as Viewport } from '@/lib/mapbox/useMapbox'
 import { supabase } from '@/lib/supabaseClient'
 
 export type FocusSource = 'system' | 'map' | 'stories'
+export type ViewMode = 'map' | 'stories'
 
 type State = {
   focusId: string | null
@@ -13,6 +14,9 @@ type State = {
   contextById: Record<string, FeedItem[]>
   viewport: Viewport | null
   loading: boolean
+
+  // UI global
+  viewMode: ViewMode
 }
 
 type Actions = {
@@ -24,6 +28,9 @@ type Actions = {
   loadContext: (id: string, opts?: { force?: boolean }) => Promise<void>
   setViewport: (v: Viewport | null) => void
   getContextFor: (id: string) => FeedItem[] | undefined
+
+  // UI global
+  setViewMode: (m: ViewMode) => void
 }
 
 export const useExploreStore = create<State & Actions>((set, get) => ({
@@ -74,8 +81,11 @@ export const useExploreStore = create<State & Actions>((set, get) => ({
   },
 
   setViewport: (v) => set({ viewport: v }),
-
   getContextFor: (id) => get().contextById[id],
+
+  // UI global
+  viewMode: 'map',
+  setViewMode: (m) => set({ viewMode: m }),
 }))
 
 export const useFocusId = () => useExploreStore((s) => s.focusId)

@@ -1,4 +1,3 @@
-// src/components/stories/feed/VideoSlide.tsx
 'use client'
 
 import { FeedItem } from '@/lib/feed'
@@ -43,16 +42,17 @@ export default function VideoSlide({
         loop
       />
 
-      <div className="absolute left-3 top-3 rounded bg-black/55 px-2 py-1 text-xs text-white">
-        {dateLabel}
+      {/* infos: date au-dessus des coords */}
+      <div className="absolute bottom-3 left-3 rounded bg-black/55 px-2 py-1 text-xs text-white space-y-1">
+        <div>{dateLabel}</div>
+        {item.lat != null && item.lng != null && (
+          <div className="opacity-80">
+            {Number(item.lat).toFixed(4)} / {Number(item.lng).toFixed(4)}
+          </div>
+        )}
       </div>
 
-      {item.lat != null && item.lng != null && (
-        <div className="absolute bottom-3 left-3 rounded bg-black/55 px-2 py-1 text-xs text-white">
-          {Number(item.lat).toFixed(4)} / {Number(item.lng).toFixed(4)}
-        </div>
-      )}
-
+      {/* bouton volume (global via hook) */}
       <button
         type="button"
         onClick={onToggleSound}

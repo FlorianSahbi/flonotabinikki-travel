@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import ExploreMap from '@/components/explore/ExploreMap'
@@ -61,9 +61,15 @@ export default function ExploreShellClient({
   const seedContext = useExploreStore((s) => s.seedContext)
   const setFocus = useExploreStore((s) => s.setFocus)
   const loadContext = useExploreStore((s) => s.loadContext)
+
+  const viewMode = useExploreStore((s) => s.viewMode)
+  const setViewMode = useExploreStore((s) => s.setViewMode)
+
   const focusId = useFocusId()
   const focusSource = useFocusSource()
   const contextForFocus = useContextForFocus()
+
+  const lastMapSeedIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (initialFocusId) {
@@ -82,23 +88,21 @@ export default function ExploreShellClient({
     }
   }, [focusId, lang])
 
-  const [mode, setMode] = useState<'map' | 'stories'>('map')
-  useEffect(() => {
-    if (isDesktop) setMode('map')
-  }, [isDesktop])
-
   const handleMapSelect = useCallback(
     async (id: string) => {
-      await loadContext(id, { force: true })
+      await loadContext(id, { force: true }) // 1 seule fois à l’ancrage
       setFocus(id, { fetch: false, source: 'map' })
-      if (!isDesktop) setMode('stories')
+      lastMapSeedIdRef.current = id
+      if (!isDesktop) setViewMode('stories')
     },
-    [isDesktop, loadContext, setFocus]
+    [isDesktop, loadContext, setFocus, setViewMode]
   )
 
-  const feedKey = useMemo(() => {
-    return focusSource === 'map' && focusId ? `map-${focusId}` : 'static'
-  }, [focusSource, focusId])
+  const storiesRemountKey = useMemo(
+    () =>
+      lastMapSeedIdRef.current ? `map-${lastMapSeedIdRef.current}` : 'static',
+    [lastMapSeedIdRef.current]
+  )
 
   const hasPoints = points.length > 0
   const currentId = focusId
@@ -106,15 +110,16 @@ export default function ExploreShellClient({
     ? (contextForFocus as FeedItem[])
     : (initialContextItems ?? [])
 
+  // MOBILE : bascule map/stories via viewMode
   if (!isDesktop) {
     return (
       <div className="h-full w-full relative overflow-hidden">
         <AnimatePresence initial={false} mode="wait">
-          {mode === 'map' ? (
+          {viewMode === 'map' ? (
             <motion.div
               key="map"
               className="h-full w-full relative"
-              style={{ zIndex: mode === 'map' ? 30 : 10 }}
+              style={{ zIndex: 30 }}
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 20, opacity: 0 }}
@@ -134,9 +139,9 @@ export default function ExploreShellClient({
             </motion.div>
           ) : (
             <motion.div
-              key="stories"
+              key={`stories-${storiesRemountKey}`}
               className="h-full w-full relative"
-              style={{ zIndex: mode === 'stories' ? 30 : 10 }}
+              style={{ zIndex: 30 }}
               initial={{ x: 20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
@@ -146,7 +151,7 @@ export default function ExploreShellClient({
                 {currentId ? (
                   <MapProvider>
                     <StoriesFeed
-                      key={feedKey}
+                      // pas de remount inutile au swipe
                       initialId={currentId}
                       initialItems={initialItemsForFeed}
                       videosGeoJSON={videosGeoJSON}
@@ -157,13 +162,6 @@ export default function ExploreShellClient({
                 ) : (
                   <EmptyPanel />
                 )}
-                <button
-                  onClick={() => setMode('map')}
-                  className="absolute left-3 top-3 z-20 rounded-md bg-neutral-900/70 px-3 py-1.5 text-sm text-white border border-neutral-700"
-                  aria-label="Revenir à la carte"
-                >
-                  ← Carte
-                </button>
               </div>
             </motion.div>
           )}
@@ -172,6 +170,7 @@ export default function ExploreShellClient({
     )
   }
 
+  // DESKTOP : split view
   return (
     <div className="flex h-full w-full">
       <MapProvider>
@@ -190,7 +189,7 @@ export default function ExploreShellClient({
         <div className="relative flex-none h-full bg-black border-l border-neutral-800 overflow-hidden aspect-[9/16]">
           {currentId ? (
             <StoriesFeed
-              key={feedKey}
+              key={storiesRemountKey} // remount seulement après clic sur la map
               initialId={currentId}
               initialItems={initialItemsForFeed}
               videosGeoJSON={videosGeoJSON}

@@ -1,4 +1,3 @@
-// src/components/stories/StoriesFeed.tsx
 'use client'
 
 import { useEffect, useRef } from 'react'
@@ -7,13 +6,22 @@ import { Mousewheel } from 'swiper/modules'
 import 'swiper/css'
 
 import { FeedItem } from '@/lib/feed'
-import { ClusterSlide, VideoSlide, dateLabel } from '../feed'
-import { useStoriesFeed } from '@/components/feed/useStoriesFeed'
+import {
+  ClusterSlide,
+  VideoSlide,
+  dateLabel,
+  useStoriesFeed,
+  useVideoPlaylist,
+} from '../feed'
 import { useExploreStore } from '@/lib/state/useExploreStore'
-import { useVideoPlaylist } from '../feed'
 import FeedMap from '@/components/stories/FeedMap'
 import type { FeatureCollection, Point } from 'geojson'
 import { useMapCtx } from '@/app/context/map/context'
+
+type SwiperLike = {
+  activeIndex: number
+  slideTo: (index: number, speed?: number) => void
+}
 
 export default function StoriesFeed({
   initialId,
@@ -28,13 +36,15 @@ export default function StoriesFeed({
   showMiniMap?: boolean
   controlExternalMap?: boolean
 }) {
-  const swiperRef = useRef<any>(null)
-
+  const swiperRef = useRef<SwiperLike | null>(null)
   const mapCtx = useMapCtx()
+  const setFocus = useExploreStore((s) => s.setFocus)
 
+  // 🎧 ton hook d’origine
   const { setVideoRefAt, playForIndex, isMuted, toggleSound } =
     useVideoPlaylist()
 
+  // Hook de données (pagination)
   const { items, initialIndex, handleSlideChange, appendAfter, prependBefore } =
     useStoriesFeed({
       initialId,
@@ -42,9 +52,6 @@ export default function StoriesFeed({
       swiperRef,
       onPlay: playForIndex,
     })
-
-  const setFocus = useExploreStore((s) => s.setFocus)
-  const loadContext = useExploreStore((s) => s.loadContext)
 
   useEffect(() => {
     if (initialId) setFocus(initialId, { fetch: false, source: 'stories' })
@@ -72,7 +79,7 @@ export default function StoriesFeed({
   return (
     <div className="relative h-full w-full bg-black overflow-hidden">
       {showMiniMap && (
-        <div className="pointer-events-none absolute right-3 top-3 z-[60] md:right-4 md:top-4">
+        <div className="absolute right-3 top-3 z-[60] md:right-4 md:top-4">
           <FeedMap
             data={videosGeoJSON}
             activeId={activeId}
@@ -88,31 +95,27 @@ export default function StoriesFeed({
         mousewheel={{ forceToAxis: true, sensitivity: 1 }}
         resistanceRatio={0.85}
         initialSlide={initialIndex}
-        onSwiper={(instance) => {
+        onSwiper={(instance: any) => {
           swiperRef.current = instance
           const current = items[instance.activeIndex]
           if (current) {
             setFocus(current.id, { fetch: false, source: 'stories' })
             if (controlExternalMap) doEaseTo(instance.activeIndex)
           }
+          // play la vidéo active au mount
+          playForIndex(instance.activeIndex)
         }}
-        onAfterInit={(instance) => {
-          const current = items[instance.activeIndex]
-          if (current) playForIndex(instance.activeIndex)
-        }}
-        onSlideChange={async (instance) => {
-          handleSlideChange(instance.activeIndex)
-          const current = items[instance.activeIndex] ?? items[0]
+        onSlideChange={(instance: any) => {
+          const idx = instance.activeIndex
+          handleSlideChange(idx) // déclenche play via hook
+          const current = items[idx] ?? items[0]
           if (current) {
-            try {
-              await loadContext(current.id)
-            } finally {
-              setFocus(current.id, { fetch: false, source: 'stories' })
-            }
+            setFocus(current.id, { fetch: false, source: 'stories' })
           }
-          if (controlExternalMap) doEaseTo(instance.activeIndex)
-          if (instance.activeIndex >= items.length - 2) appendAfter()
-          if (instance.activeIndex <= 1) prependBefore()
+          if (controlExternalMap) doEaseTo(idx)
+          // pagination aux bords (pas de loadContext ici)
+          if (idx >= items.length - 2) appendAfter()
+          if (idx <= 1) prependBefore()
         }}
         className="h-full w-full"
         threshold={10}
@@ -141,10 +144,7 @@ export default function StoriesFeed({
                     dateLabel={label}
                     isMuted={isMuted}
                     onToggleSound={() => {
-                      const swiper = swiperRef.current as {
-                        activeIndex: number
-                      } | null
-                      const active = swiper?.activeIndex ?? itemIndex
+                      const active = swiperRef.current?.activeIndex ?? itemIndex
                       toggleSound(active)
                     }}
                   />
