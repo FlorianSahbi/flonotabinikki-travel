@@ -13,7 +13,7 @@ import type {
   CameraView,
   TimelineEvent,
 } from '@/components/timeline/timeline.data'
-import { CentralLine } from './CentralLine'
+import CentralLine from './CentralLine'
 
 const MEDIA_W = 360
 const MEDIA_H = Math.round(MEDIA_W * 1.25)

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, memo } from 'react'
 import { useScroll, useMotionValueEvent } from 'framer-motion'
 import { slugify } from '@/lib/slugify'
-import { CentralLine } from './CentralLine'
+import CentralLine from './CentralLine'
 
 export type Entry = {
   id: number

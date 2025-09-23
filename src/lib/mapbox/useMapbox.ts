@@ -7,7 +7,7 @@ import type { CameraFns, MoveOpts } from '@/types/app'
 
 const DEFAULT_STYLE =
   process.env.NEXT_PUBLIC_MAPBOX_STYLE_URL ||
-  'mapbox://styles/mapbox/satellite-v9'
+  'mapbox://styles/florian-sahbi/cmfoug58000dk01sbcfzs78dw'
 
 const DEFAULT_VIEW: Required<View> = {
   center: [134, 35],

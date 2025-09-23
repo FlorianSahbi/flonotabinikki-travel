@@ -10,7 +10,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "analyze": "ANALYZE=true next build",
-    "db:types": "mkdir -p src/types && supabase gen types typescript --linked > src/types/supabase.ts"
+    "db:types": "mkdir -p src/types && supabase gen types typescript --linked > src/types/supabase.ts",
+    "check:unused": "ts-prune -p tsconfig.json \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {
     "@headlessui/react": "^2.2.7",
@@ -51,6 +52,7 @@
     "eslint-plugin-tailwindcss": "^3.18.2",
     "prettier": "^3.6.2",
     "tailwindcss": "^4",
+    "ts-prune": "^0.10.3",
     "typescript": "^5"
   },
   "resolutions": {

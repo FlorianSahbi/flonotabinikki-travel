@@ -2,10 +2,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CardsReveal } from '@/components/timeline'
-import OverviewRailSections, {
-  type Entry as RailEntry,
-} from '@/components/timeline/OverviewRail'
+
 import {
   timelineEvents,
   overviewCities,
@@ -15,9 +12,10 @@ import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { useTimelineCtx } from '@/app/context/timeline/context'
 import { slugify } from '@/lib/slugify'
 import scrollIntoView from 'scroll-into-view-if-needed'
-import StrokeTitle from '@/components/timeline/StrokeTitle'
-import ViewportCenterLine from '@/components/timeline/ViewportCenterLine'
+import { CardsReveal, StrokeTitle } from '@/components/timeline'
+import { ViewportCenterLine } from '@/components/timeline'
 import { CAM_PRESET } from '@/lib/mapbox/cameraPresets'
+import OverviewRailSections from '@/components/timeline/OverviewRail'
 
 export default function TimelineOverviewPage() {
   const { easeTo, isMapReady, setDetailModeAudio } = useTimelineCtx()
@@ -63,11 +61,11 @@ export default function TimelineOverviewPage() {
     [pathname, searchParams, router]
   )
 
-  const [activeEntry, setActiveEntry] = useState<RailEntry | null>(null)
-  const pendingRef = useRef<RailEntry | null>(null)
+  const [activeEntry, setActiveEntry] = useState<any | null>(null)
+  const pendingRef = useRef<any | null>(null)
 
   const flyToEntry = useCallback(
-    (entry: RailEntry) => {
+    (entry: any) => {
       const doIt = () =>
         easeTo(
           {
@@ -93,7 +91,7 @@ export default function TimelineOverviewPage() {
   }, [isMapReady, flyToEntry])
 
   const handleCross = useCallback(
-    (entry?: RailEntry) => {
+    (entry?: any) => {
       if (!entry) return
       setActiveEntry(entry)
       const slug = getSlug(entry as any)

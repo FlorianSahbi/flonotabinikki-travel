@@ -14,7 +14,7 @@ type CentralLineProps = {
   className?: string
 }
 
-export function CentralLine({
+export default function CentralLine({
   colWidth,
   lineX,
   strokeWidth,

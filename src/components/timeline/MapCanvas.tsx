@@ -16,7 +16,7 @@ type Props = {
   visible?: boolean
 }
 
-export function MapCanvas({ accessToken, visible = true }: Props) {
+export default function MapCanvas({ accessToken, visible = true }: Props) {
   const { __setStatus, __setCameraFns } = useMapCtx()
 
   // Instantiate map (hook only creates the map and exposes camera helpers)

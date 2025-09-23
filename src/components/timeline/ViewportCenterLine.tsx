@@ -1,7 +1,6 @@
 // src/components/debug/ViewportCenterLine.tsx
 'use client'
 
-import { memo } from 'react'
 import { motion } from 'framer-motion'
 
 type Props = {
@@ -14,7 +13,7 @@ type Props = {
   crosshair?: boolean
 }
 
-export default memo(function ViewportCenterLine({
+export default function ViewportCenterLine({
   show = true,
   vertical = true,
   horizontal = true,
@@ -76,4 +75,4 @@ export default memo(function ViewportCenterLine({
       )}
     </>
   )
-})
+}

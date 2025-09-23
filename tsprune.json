@@ -1,0 +1,9 @@
+{
+  "ignore": [
+    "src/middleware.ts",
+    "src/app/**",
+    "src/types/supabase.ts",
+    "src/components/**/index.ts",
+    "src/lib/state/useExploreStore.ts"
+  ]
+}
