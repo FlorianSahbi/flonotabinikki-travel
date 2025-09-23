@@ -1,3 +1,4 @@
+// src/components/map-layers/VideosPointsLayer.tsx
 'use client'
 
 import { useEffect } from 'react'
@@ -15,8 +16,6 @@ export default function VideosPointsLayer({
   layerId = 'videos-points',
   radius = 5,
   strokeWidth = 1,
-  waitMs = 2000,
-  pollEveryMs = 50,
 }: {
   getMap: () => any | null
   data: FeatureCollection<Point, { id: string }>
@@ -26,132 +25,212 @@ export default function VideosPointsLayer({
   layerId?: string
   radius?: number
   strokeWidth?: number
-  waitMs?: number
-  pollEveryMs?: number
 }) {
-  useEffect(() => {
-    let removeClick: (() => void) | null = null
-    let interval: number | null = null
-    let timeout: number | null = null
-    let mounted = true
-
-    const addNow = (map: any) => {
-      if (!mounted) return
-
-      const src = map.getSource(sourceId) as any
-      if (!src) map.addSource(sourceId, { type: 'geojson', data })
-      else
-        try {
-          src.setData(data)
-        } catch {}
-
-      if (!map.getLayer(layerId)) {
-        try {
-          map.addLayer({
-            id: layerId,
-            type: 'circle',
-            source: sourceId,
-            paint: {
-              'circle-radius': radius,
-              'circle-stroke-width': strokeWidth,
-              'circle-stroke-color': '#fff',
-              'circle-opacity': 0.95,
-              'circle-color': ORANGE,
-            },
-          })
-        } catch {}
-      } else {
-        try {
-          map.setPaintProperty(layerId, 'circle-radius', radius)
-          map.setPaintProperty(layerId, 'circle-stroke-width', strokeWidth)
-          map.setPaintProperty(layerId, 'circle-stroke-color', '#fff')
-          map.setPaintProperty(layerId, 'circle-opacity', 0.95)
-        } catch {}
-      }
-
-      if (onClick) {
-        const handler = (e: any) => {
-          const f = e.features?.[0]
-          const id = f?.properties?.id as string | undefined
-          if (!id) return
-          const [lng, lat] = f.geometry.coordinates
-          onClick(id, [lng, lat])
-        }
-        map.on('click', layerId, handler)
-        map.on(
-          'mouseenter',
-          layerId,
-          () => (map.getCanvas().style.cursor = 'pointer')
-        )
-        map.on('mouseleave', layerId, () => (map.getCanvas().style.cursor = ''))
-        removeClick = () => {
-          map.off('click', layerId, handler)
-          map.off('mouseenter', layerId, () => {})
-          map.off('mouseleave', layerId, () => {})
-        }
-      }
-    }
-
-    const tryAdd = () => {
-      const map = getMap()
-      if (!map) return
-      if (map.isStyleLoaded?.()) addNow(map)
-      else map.once?.('load', () => addNow(map))
-      if (interval !== null) {
-        clearInterval(interval)
-        interval = null
-      }
-      if (timeout !== null) {
-        clearTimeout(timeout)
-        timeout = null
-      }
-    }
-
-    tryAdd()
-    interval = window.setInterval(tryAdd, Math.max(10, pollEveryMs))
-    timeout = window.setTimeout(
-      () => {
-        if (interval !== null) {
-          clearInterval(interval)
-          interval = null
-        }
-      },
-      Math.max(pollEveryMs, waitMs)
-    )
-
-    return () => {
-      mounted = false
-      if (interval !== null) clearInterval(interval)
-      if (timeout !== null) clearTimeout(timeout)
-      if (removeClick) removeClick()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getMap, sourceId, layerId, radius, strokeWidth, onClick])
-
-  useEffect(() => {
-    const map = getMap()
-    if (!map) return
+  const ensureSourceAndLayer = (map: any) => {
     const src = map.getSource(sourceId) as any
-    if (src?.setData) {
+    if (!src) {
+      map.addSource(sourceId, { type: 'geojson', data })
+    } else {
       try {
         src.setData(data)
       } catch {}
     }
+    if (!map.getLayer(layerId)) {
+      map.addLayer({
+        id: layerId,
+        type: 'circle',
+        source: sourceId,
+        paint: {
+          'circle-radius': radius,
+          'circle-stroke-width': strokeWidth,
+          'circle-stroke-color': '#fff',
+          'circle-opacity': 0.95,
+          'circle-color': ORANGE,
+        },
+      })
+    } else {
+      try {
+        map.setPaintProperty(layerId, 'circle-radius', radius)
+        map.setPaintProperty(layerId, 'circle-stroke-width', strokeWidth)
+        map.setPaintProperty(layerId, 'circle-stroke-color', '#fff')
+        map.setPaintProperty(layerId, 'circle-opacity', 0.95)
+      } catch {}
+    }
+    try {
+      map.triggerRepaint?.()
+    } catch {}
+    try {
+      map.resize?.()
+    } catch {}
+    requestAnimationFrame(() => {
+      try {
+        map.resize?.()
+      } catch {}
+    })
+  }
+
+  useEffect(() => {
+    let disposed = false
+    let cancelRaf: number | null = null
+    let offLoad: (() => void) | null = null
+
+    const waitForMap = () => {
+      const map = getMap()
+      if (!map) {
+        cancelRaf = requestAnimationFrame(waitForMap)
+        return
+      }
+
+      const init = () => {
+        if (disposed) return
+        ensureSourceAndLayer(map)
+      }
+
+      if (map.isStyleLoaded?.()) init()
+      else {
+        const onLoad = () => {
+          init()
+        }
+        map.once?.('load', onLoad)
+        offLoad = () => {
+          try {
+            map.off?.('load', onLoad)
+          } catch {}
+        }
+      }
+
+      const onStyleData = () => {
+        if (disposed) return
+        ensureSourceAndLayer(map)
+      }
+      map.on('styledata', onStyleData)
+
+      return () => {
+        try {
+          map.off('styledata', onStyleData)
+        } catch {}
+        if (offLoad) offLoad()
+      }
+    }
+
+    const cleanup = waitForMap()
+
+    return () => {
+      disposed = true
+      if (cancelRaf !== null) cancelAnimationFrame(cancelRaf)
+      if (cleanup) cleanup()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getMap, sourceId, layerId, radius, strokeWidth, data])
+
+  useEffect(() => {
+    let cancelRaf: number | null = null
+    const tick = () => {
+      const map = getMap()
+      if (!map) {
+        cancelRaf = requestAnimationFrame(tick)
+        return
+      }
+      const src = map.getSource(sourceId) as any
+      if (src?.setData) {
+        try {
+          src.setData(data)
+        } catch {}
+        try {
+          map.triggerRepaint?.()
+        } catch {}
+      }
+    }
+    tick()
+    return () => {
+      if (cancelRaf !== null) cancelAnimationFrame(cancelRaf)
+    }
   }, [getMap, sourceId, data])
 
   useEffect(() => {
-    const map = getMap()
-    if (!map) return
-    const expr: any = [
-      'case',
-      ['==', ['get', 'id'], activeId ?? '__none__'],
-      BLUE,
-      ORANGE,
-    ]
-    try {
-      map.setPaintProperty(layerId, 'circle-color', expr)
-    } catch {}
+    let cancelRaf: number | null = null
+    const tick = () => {
+      const map = getMap()
+      if (!map) {
+        cancelRaf = requestAnimationFrame(tick)
+        return
+      }
+      const expr: any = [
+        'case',
+        ['==', ['get', 'id'], activeId ?? '__none__'],
+        BLUE,
+        ORANGE,
+      ]
+      try {
+        map.setPaintProperty(layerId, 'circle-color', expr)
+      } catch {}
+    }
+    tick()
+    return () => {
+      if (cancelRaf !== null) cancelAnimationFrame(cancelRaf)
+    }
   }, [getMap, activeId, layerId])
+
+  useEffect(() => {
+    if (!onClick) return
+    let cancelRaf: number | null = null
+    let remove: (() => void) | null = null
+
+    const arm = () => {
+      const map = getMap()
+      if (!map) {
+        cancelRaf = requestAnimationFrame(arm)
+        return
+      }
+
+      const handleClick = (e: any) => {
+        try {
+          const feats = map.queryRenderedFeatures(e.point, {
+            layers: [layerId],
+          })
+          const f = feats && feats[0]
+          const id = f?.properties?.id as string | undefined
+          if (!id) return
+          const [lng, lat] = f.geometry.coordinates
+          try {
+            map.getCanvas().style.cursor = ''
+          } catch {}
+          onClick(id, [lng, lat])
+        } catch {}
+      }
+
+      const handleMove = (e: any) => {
+        try {
+          const feats = map.queryRenderedFeatures(e.point, {
+            layers: [layerId],
+          })
+          const hasHit = feats && feats.length > 0
+          map.getCanvas().style.cursor = hasHit ? 'pointer' : ''
+        } catch {}
+      }
+
+      map.on('click', handleClick)
+      map.on('mousemove', handleMove)
+
+      remove = () => {
+        try {
+          map.off('click', handleClick)
+        } catch {}
+        try {
+          map.off('mousemove', handleMove)
+        } catch {}
+        try {
+          map.getCanvas().style.cursor = ''
+        } catch {}
+      }
+    }
+
+    arm()
+    return () => {
+      if (cancelRaf !== null) cancelAnimationFrame(cancelRaf)
+      if (remove) remove()
+    }
+  }, [getMap, layerId, onClick])
 
   return null
 }

@@ -42,7 +42,6 @@ export default function VideoSlide({
         loop
       />
 
-      {/* infos: date au-dessus des coords */}
       <div className="absolute bottom-3 left-3 rounded bg-black/55 px-2 py-1 text-xs text-white space-y-1">
         <div>{dateLabel}</div>
         {item.lat != null && item.lng != null && (
@@ -52,7 +51,6 @@ export default function VideoSlide({
         )}
       </div>
 
-      {/* bouton volume (global via hook) */}
       <button
         type="button"
         onClick={onToggleSound}

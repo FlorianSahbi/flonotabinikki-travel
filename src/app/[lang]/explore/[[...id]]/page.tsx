@@ -1,3 +1,4 @@
+// src/app/[lang]/explore/[[...id]]/page.tsx
 import ExploreShellClient from '@/components/explore/ExploreShellClient'
 import { supabase } from '@/lib/supabaseClient'
 import type { FeedItem } from '@/lib/feed'
@@ -15,7 +16,6 @@ export default async function ExplorePage({
     .not('lat', 'is', null)
     .not('lng', 'is', null)
 
-  // ✅ sécuriser contre null
   const videos = (videosWithCoordinates ?? []) as {
     id: string
     lat: number

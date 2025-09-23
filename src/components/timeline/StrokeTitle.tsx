@@ -189,20 +189,12 @@ type Props = {
   kanjiDelaySec?: number
   hoverFillSec?: number
   onClick?: () => void
-
-  /** Desktop sizes (px) */
   fontPxTitle?: number
   fontPxKanji?: number
-  /** Mobile sizes (px) */
   mobileFontPxTitle?: number
   mobileFontPxKanji?: number
-
-  /** Vertical behavior */
   verticalMode?: 'mobile' | 'always' | 'never'
-  /** Spacing for vertical layout (mobile) */
   mobileLetterGapEm?: number
-
-  /** NEW: mobile positioning (applied on the vertical layout only) */
   mobileTitleX?: number
   mobileTitleY?: number
   mobileKanjiX?: number
@@ -223,18 +215,12 @@ export default function StrokeTitle({
   kanjiDelaySec = 0.08,
   hoverFillSec = 0.45,
   onClick,
-
-  // desktop defaults
   fontPxTitle = 136,
   fontPxKanji = 40,
-  // mobile overrides
   mobileFontPxTitle = 64,
   mobileFontPxKanji = 44,
-
   verticalMode = 'mobile',
   mobileLetterGapEm = -0.08,
-
-  // NEW: per-element offsets (px) on mobile
   mobileTitleX = 0,
   mobileTitleY = 0,
   mobileKanjiX = 0,
@@ -266,7 +252,6 @@ export default function StrokeTitle({
       initial="rest"
       whileHover="hover"
     >
-      {/* Vertical (mobile/always) with per-element positioning */}
       <div className={showVertical}>
         {title && (
           <div
@@ -315,7 +300,6 @@ export default function StrokeTitle({
         )}
       </div>
 
-      {/* Horizontal (desktop) */}
       <div className={showHorizontal}>
         {title && (
           <HorizontalStrokeText

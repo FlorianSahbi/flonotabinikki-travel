@@ -10,7 +10,6 @@ export default function GlobalMenu() {
 
   return (
     <>
-      {/* bouton burger mobile (dark glass) */}
       <button
         onClick={() => setOpen(true)}
         className="fixed top-3 left-3 z-50 rounded-md border border-white/10 bg-neutral-900/70 p-2 backdrop-blur hover:bg-neutral-900/80 md:hidden"
@@ -19,7 +18,6 @@ export default function GlobalMenu() {
         <MenuIcon className="h-6 w-6 text-neutral-100" />
       </button>
 
-      {/* dropdown desktop (dark) */}
       <div className="hidden md:block fixed top-3 left-3 z-50">
         <Menu as="div" className="relative inline-block text-left">
           <Menu.Button className="rounded-md border border-white/10 bg-neutral-900/70 px-3 py-1.5 text-neutral-100 backdrop-blur hover:bg-neutral-900/80">
@@ -66,7 +64,6 @@ export default function GlobalMenu() {
         </Menu>
       </div>
 
-      {/* drawer mobile (dark) */}
       <Transition show={open} as={Fragment}>
         <Dialog
           as="div"

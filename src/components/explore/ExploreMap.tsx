@@ -1,8 +1,9 @@
+// src/components/explore/ExploreMap.tsx
 'use client'
 
 import type { FeatureCollection, Point } from 'geojson'
 import { useMapbox } from '@/lib/mapbox/useMapbox'
-import { useAttachMapContext } from '@/lib/mapbox/useAttachMapContext'
+import { useAttachMapContext } from '@/lib/mapbox/useAttachMapContext' // ⬅️ (re)import
 import VideosPointsLayer from '@/components/map-layers/VideosPointsLayer'
 
 const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!

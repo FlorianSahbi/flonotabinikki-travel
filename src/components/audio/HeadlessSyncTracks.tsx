@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef } from 'react'
 type Track = {
   label: string
   url: string
-  gain?: number // par-piste (défaut 1)
+  gain?: number
 }
 
 type Props = {
@@ -53,7 +53,7 @@ export default function HeadlessSyncTracks({
     for (let i = 0; i < safeTracks.length; i++) {
       if (!elsRef.current[i]) {
         const t = safeTracks[i]
-        if (!t) continue // ✅ guard TS
+        if (!t) continue
         const a = new Audio(t.url)
         a.loop = true
         a.preload = 'auto'

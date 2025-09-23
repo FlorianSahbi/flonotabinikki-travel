@@ -1,3 +1,4 @@
+// src/lib/state/useExploreStore.ts
 'use client'
 
 import { create } from 'zustand'
@@ -15,7 +16,6 @@ type State = {
   viewport: Viewport | null
   loading: boolean
 
-  // UI global
   viewMode: ViewMode
 }
 
@@ -28,8 +28,6 @@ type Actions = {
   loadContext: (id: string, opts?: { force?: boolean }) => Promise<void>
   setViewport: (v: Viewport | null) => void
   getContextFor: (id: string) => FeedItem[] | undefined
-
-  // UI global
   setViewMode: (m: ViewMode) => void
 }
 
@@ -83,7 +81,6 @@ export const useExploreStore = create<State & Actions>((set, get) => ({
   setViewport: (v) => set({ viewport: v }),
   getContextFor: (id) => get().contextById[id],
 
-  // UI global
   viewMode: 'map',
   setViewMode: (m) => set({ viewMode: m }),
 }))

@@ -17,9 +17,9 @@ type Direction = -1 | 0 | 1
 
 type Props = {
   entries: Entry[]
-  sectionVh?: number // default 75
+  sectionVh?: number
   dotSizePx?: number
-  showTrackerLine?: boolean // per-section dashed line
+  showTrackerLine?: boolean
   className?: string
   onCross?: (
     entry: Entry | undefined,
@@ -68,13 +68,11 @@ const SectionItem = memo(function SectionItem({
   const ref = useRef<HTMLElement | null>(null)
   const slug = (entry as any).slug ?? slugify(entry.title)
 
-  // "inside" means viewport center is within the section
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ['start center', 'end center'],
   })
 
-  // trigger once when entering the section
   const wasInsideRef = useRef(false)
   useMotionValueEvent(scrollYProgress, 'change', (v) => {
     const inside = v > EPS && v < 1 - EPS
@@ -112,7 +110,6 @@ const SectionItem = memo(function SectionItem({
         />
       )}
 
-      {/* Sticky dot centered on viewport */}
       <div
         className="sticky z-20 flex justify-center"
         style={{
@@ -147,7 +144,6 @@ export default function OverviewRailSections({
 }: Props) {
   const sectionsRef = useRef<Array<HTMLElement | null>>([])
 
-  // Measure width for dashed line centering
   const measureRef = useRef<HTMLDivElement | null>(null)
   const [colWidth, setColWidth] = useState(0)
   const lineX = Math.max(0, Math.round(colWidth / 2))
@@ -175,7 +171,6 @@ export default function OverviewRailSections({
     [activeIndex, entries, onCross]
   )
 
-  // Optional initial selection
   useEffect(() => {
     if (
       typeof initialActiveIndex === 'number' &&
@@ -188,8 +183,6 @@ export default function OverviewRailSections({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialActiveIndex])
 
-  // OUT-OF-FLOW detection: when viewport center is above the first section
-  // or below the last section, we signal "no active entry".
   const rootRef = useRef<HTMLDivElement | null>(null)
   const { scrollYProgress: railProgress } = useScroll({
     target: rootRef,

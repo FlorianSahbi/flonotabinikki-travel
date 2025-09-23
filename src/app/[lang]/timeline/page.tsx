@@ -173,7 +173,6 @@ export default function TimelineOverviewPage() {
                 />
               </div>
 
-              {/* Kanji (green box zone): move a bit right of center */}
               {activeEntry.kanji && (
                 <div className="absolute left-1/2 top-1/2 translate-x-[28vw] -translate-y-1/2">
                   <StrokeTitle
@@ -189,7 +188,6 @@ export default function TimelineOverviewPage() {
               )}
             </div>
 
-            {/* Desktop: horizontal centered title */}
             <div className="hidden md:block">
               <StrokeTitle
                 title={activeEntry.title}

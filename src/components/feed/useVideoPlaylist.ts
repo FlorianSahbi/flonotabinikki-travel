@@ -5,7 +5,7 @@ import { useRef, useState } from 'react'
 
 export function useVideoPlaylist() {
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
-  const [isMuted, setIsMuted] = useState(true) // son global coupé par défaut
+  const [isMuted, setIsMuted] = useState(true)
 
   const setVideoRefAt = (index: number) => (el: HTMLVideoElement | null) => {
     videoRefs.current[index] = el

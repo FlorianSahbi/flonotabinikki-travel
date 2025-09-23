@@ -1,3 +1,4 @@
+// src/components/stories/StoriesFeed.tsx
 'use client'
 
 import { useEffect, useRef } from 'react'
@@ -40,11 +41,9 @@ export default function StoriesFeed({
   const mapCtx = useMapCtx()
   const setFocus = useExploreStore((s) => s.setFocus)
 
-  // 🎧 ton hook d’origine
   const { setVideoRefAt, playForIndex, isMuted, toggleSound } =
     useVideoPlaylist()
 
-  // Hook de données (pagination)
   const { items, initialIndex, handleSlideChange, appendAfter, prependBefore } =
     useStoriesFeed({
       initialId,
@@ -72,9 +71,34 @@ export default function StoriesFeed({
     )
   }
 
+  const rafRef = useRef<number | null>(null)
+  const rafEaseTo = (idx: number) => {
+    if (!controlExternalMap) return
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
+    rafRef.current = requestAnimationFrame(() => {
+      doEaseTo(idx)
+      rafRef.current = null
+    })
+  }
+  useEffect(
+    () => () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
+    },
+    []
+  )
+  // ⬆️
+
   const activeIndex = () => swiperRef.current?.activeIndex ?? initialIndex
   const activeId = items[activeIndex()]?.id ?? null
   const activeCenter = centerForIndex(activeIndex())
+
+  useEffect(() => {
+    if (!controlExternalMap) return
+    if (!activeId) return
+    rafEaseTo(activeIndex())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, controlExternalMap])
+  // ⬆️
 
   return (
     <div className="relative h-full w-full bg-black overflow-hidden">
@@ -100,20 +124,18 @@ export default function StoriesFeed({
           const current = items[instance.activeIndex]
           if (current) {
             setFocus(current.id, { fetch: false, source: 'stories' })
-            if (controlExternalMap) doEaseTo(instance.activeIndex)
+            if (controlExternalMap) rafEaseTo(instance.activeIndex)
           }
-          // play la vidéo active au mount
           playForIndex(instance.activeIndex)
         }}
         onSlideChange={(instance: any) => {
           const idx = instance.activeIndex
-          handleSlideChange(idx) // déclenche play via hook
+          handleSlideChange(idx)
           const current = items[idx] ?? items[0]
           if (current) {
             setFocus(current.id, { fetch: false, source: 'stories' })
           }
-          if (controlExternalMap) doEaseTo(idx)
-          // pagination aux bords (pas de loadContext ici)
+          if (controlExternalMap) rafEaseTo(idx)
           if (idx >= items.length - 2) appendAfter()
           if (idx <= 1) prependBefore()
         }}
