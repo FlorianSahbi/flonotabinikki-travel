@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useEffect, useState } from 'react'
 import {
   motion,
   useReducedMotion,
@@ -21,9 +21,15 @@ type Props = {
   subtitle?: string
   items: Item[]
   heightVh?: number
+  // desktop defaults
   cardVW?: number
   gapVW?: number
   rowPadVW?: number
+  // mobile overrides
+  cardVWMobile?: number
+  gapVWMobile?: number
+  rowPadVWMobile?: number
+  // scroll behavior
   startOvershootVW?: number
   endOvershootVW?: number
   xEndAt?: number
@@ -33,14 +39,42 @@ type Props = {
   doneThreshold?: number
 }
 
+// petit hook pour suivre le breakpoint Tailwind md
+function useIsDesktop(query = '(min-width: 768px)') {
+  const [isDesktop, setIsDesktop] = useState<boolean>(() =>
+    typeof window === 'undefined' ? true : window.matchMedia(query).matches
+  )
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mql = window.matchMedia(query)
+    const onChange = (e: MediaQueryListEvent | MediaQueryList) =>
+      setIsDesktop('matches' in e ? e.matches : (e as MediaQueryList).matches)
+    // init + subscribe (compat old Safari)
+    onChange(mql as any)
+    mql.addEventListener?.('change', onChange as any)
+    mql.addListener?.(onChange as any)
+    return () => {
+      mql.removeEventListener?.('change', onChange as any)
+      mql.removeListener?.(onChange as any)
+    }
+  }, [query])
+  return isDesktop
+}
+
 export default function CardsReveal({
   title,
   subtitle,
   items,
   heightVh = 500,
+  // desktop defaults
   cardVW = 28,
   gapVW = 4,
   rowPadVW = 6,
+  // mobile overrides
+  cardVWMobile = 90,
+  gapVWMobile = 3,
+  rowPadVWMobile = 6,
+  // scroll behavior
   startOvershootVW = 0,
   endOvershootVW = 20,
   xEndAt = 0.7,
@@ -50,6 +84,13 @@ export default function CardsReveal({
   doneThreshold = 0.88,
 }: Props) {
   const reduceMotion = useReducedMotion()
+  const isDesktop = useIsDesktop()
+
+  // valeurs finales selon le breakpoint
+  const CARD_VW = isDesktop ? cardVW : cardVWMobile
+  const GAP_VW = isDesktop ? gapVW : gapVWMobile
+  const ROW_PAD_VW = isDesktop ? rowPadVW : rowPadVWMobile
+
   const sectionRef = useRef<HTMLDivElement | null>(null)
 
   const { scrollYProgress: sectionProgress } = useScroll({
@@ -67,12 +108,12 @@ export default function CardsReveal({
 
   const itemCount = items.length
   const rowWidthVW = useMemo(
-    () => itemCount * cardVW + Math.max(0, itemCount - 1) * gapVW,
-    [itemCount, cardVW, gapVW]
+    () => itemCount * CARD_VW + Math.max(0, itemCount - 1) * GAP_VW,
+    [itemCount, CARD_VW, GAP_VW]
   )
 
   const startTranslateXvw = 100 + startOvershootVW
-  const endTranslateXvw = -(rowWidthVW + rowPadVW * 2 + endOvershootVW)
+  const endTranslateXvw = -(rowWidthVW + ROW_PAD_VW * 2 + endOvershootVW)
 
   const rowTranslateX = useTransform(progress, (value) => {
     const normalized = Math.max(0, Math.min(1, value / Math.max(1e-6, xEndAt)))
@@ -104,11 +145,13 @@ export default function CardsReveal({
           style={{ clipPath: titleClipPath }}
         >
           <div className="text-center select-none">
-            <div className="text-[12vw] leading-none font-extrabold tracking-tight text-white/90">
+            <div className="text-[14vw] md:text-[12vw] leading-none font-extrabold tracking-tight text-white/90">
               {title.toUpperCase()}
             </div>
             {subtitle && (
-              <div className="-mt-2 text-[4vw] text-white/70">{subtitle}</div>
+              <div className="-mt-2 text-[5vw] md:text-[4vw] text-white/70">
+                {subtitle}
+              </div>
             )}
           </div>
         </motion.div>
@@ -118,16 +161,16 @@ export default function CardsReveal({
             className="flex items-center will-change-transform transform-gpu"
             style={{
               x: rowTranslateX,
-              gap: `${gapVW}vw`,
-              paddingLeft: `${rowPadVW}vw`,
-              paddingRight: `${rowPadVW}vw`,
+              gap: `${GAP_VW}vw`,
+              paddingLeft: `${ROW_PAD_VW}vw`,
+              paddingRight: `${ROW_PAD_VW}vw`,
             }}
           >
             {items.map((media) => (
               <figure
                 key={media.src}
                 className="relative aspect-[3/4] shrink-0 overflow-visible"
-                style={{ width: `${cardVW}vw`, perspective: 1000 }}
+                style={{ width: `${CARD_VW}vw`, perspective: 1000 }}
               >
                 <div className="h-full w-full rounded-2xl overflow-hidden bg-black/60 ring-1 ring-white/10 shadow-2xl">
                   <Video

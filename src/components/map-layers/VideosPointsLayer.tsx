@@ -26,7 +26,7 @@ export default function VideosPointsLayer({
   radius?: number
   strokeWidth?: number
 }) {
-  const ensureSourceAndLayer = (map: any) => {
+  const ensureBaseSourceAndLayer = (map: any) => {
     const src = map.getSource(sourceId) as any
     if (!src) {
       map.addSource(sourceId, { type: 'geojson', data })
@@ -35,6 +35,7 @@ export default function VideosPointsLayer({
         src.setData(data)
       } catch {}
     }
+
     if (!map.getLayer(layerId)) {
       map.addLayer({
         id: layerId,
@@ -56,17 +57,12 @@ export default function VideosPointsLayer({
         map.setPaintProperty(layerId, 'circle-opacity', 0.95)
       } catch {}
     }
+
     try {
       map.triggerRepaint?.()
-    } catch {}
-    try {
       map.resize?.()
+      requestAnimationFrame(() => map.resize?.())
     } catch {}
-    requestAnimationFrame(() => {
-      try {
-        map.resize?.()
-      } catch {}
-    })
   }
 
   useEffect(() => {
@@ -83,14 +79,12 @@ export default function VideosPointsLayer({
 
       const init = () => {
         if (disposed) return
-        ensureSourceAndLayer(map)
+        ensureBaseSourceAndLayer(map)
       }
 
       if (map.isStyleLoaded?.()) init()
       else {
-        const onLoad = () => {
-          init()
-        }
+        const onLoad = () => init()
         map.once?.('load', onLoad)
         offLoad = () => {
           try {
@@ -101,7 +95,7 @@ export default function VideosPointsLayer({
 
       const onStyleData = () => {
         if (disposed) return
-        ensureSourceAndLayer(map)
+        ensureBaseSourceAndLayer(map)
       }
       map.on('styledata', onStyleData)
 
@@ -125,6 +119,80 @@ export default function VideosPointsLayer({
 
   useEffect(() => {
     let cancelRaf: number | null = null
+    let removeStyleListener: (() => void) | null = null
+
+    const activeLayerId = `${layerId}--active`
+
+    const ensureActiveLayer = () => {
+      const map = getMap()
+      if (!map) {
+        cancelRaf = requestAnimationFrame(ensureActiveLayer)
+        return
+      }
+      if (!map.getSource(sourceId)) {
+        cancelRaf = requestAnimationFrame(ensureActiveLayer)
+        return
+      }
+
+      if (!map.getLayer(activeLayerId)) {
+        try {
+          map.addLayer({
+            id: activeLayerId,
+            type: 'circle',
+            source: sourceId,
+            filter: ['==', ['get', 'id'], '__none__'],
+            paint: {
+              'circle-radius': Math.max(radius + 2, radius * 1.4),
+              'circle-color': BLUE,
+              'circle-stroke-color': '#ffffff',
+              'circle-stroke-width': Math.max(strokeWidth + 1, 2),
+              'circle-opacity': 1,
+            },
+          })
+        } catch {}
+      }
+
+      try {
+        map.setFilter(activeLayerId, [
+          '==',
+          ['get', 'id'],
+          activeId ?? '__none__',
+        ])
+      } catch {}
+
+      try {
+        map.moveLayer(activeLayerId)
+      } catch {}
+
+      const onStyleData = () => {
+        try {
+          if (!map.getLayer(activeLayerId)) return ensureActiveLayer()
+          map.setFilter(activeLayerId, [
+            '==',
+            ['get', 'id'],
+            activeId ?? '__none__',
+          ])
+          map.moveLayer(activeLayerId)
+        } catch {}
+      }
+      map.on('styledata', onStyleData)
+      removeStyleListener = () => {
+        try {
+          map.off('styledata', onStyleData)
+        } catch {}
+      }
+    }
+
+    ensureActiveLayer()
+
+    return () => {
+      if (cancelRaf !== null) cancelAnimationFrame(cancelRaf)
+      if (removeStyleListener) removeStyleListener()
+    }
+  }, [getMap, sourceId, layerId, activeId, radius, strokeWidth])
+
+  useEffect(() => {
+    let cancelRaf: number | null = null
     const tick = () => {
       const map = getMap()
       if (!map) {
@@ -135,8 +203,6 @@ export default function VideosPointsLayer({
       if (src?.setData) {
         try {
           src.setData(data)
-        } catch {}
-        try {
           map.triggerRepaint?.()
         } catch {}
       }
@@ -146,30 +212,6 @@ export default function VideosPointsLayer({
       if (cancelRaf !== null) cancelAnimationFrame(cancelRaf)
     }
   }, [getMap, sourceId, data])
-
-  useEffect(() => {
-    let cancelRaf: number | null = null
-    const tick = () => {
-      const map = getMap()
-      if (!map) {
-        cancelRaf = requestAnimationFrame(tick)
-        return
-      }
-      const expr: any = [
-        'case',
-        ['==', ['get', 'id'], activeId ?? '__none__'],
-        BLUE,
-        ORANGE,
-      ]
-      try {
-        map.setPaintProperty(layerId, 'circle-color', expr)
-      } catch {}
-    }
-    tick()
-    return () => {
-      if (cancelRaf !== null) cancelAnimationFrame(cancelRaf)
-    }
-  }, [getMap, activeId, layerId])
 
   useEffect(() => {
     if (!onClick) return
@@ -211,7 +253,6 @@ export default function VideosPointsLayer({
 
       map.on('click', handleClick)
       map.on('mousemove', handleMove)
-
       remove = () => {
         try {
           map.off('click', handleClick)
@@ -231,6 +272,30 @@ export default function VideosPointsLayer({
       if (remove) remove()
     }
   }, [getMap, layerId, onClick])
+
+  useEffect(() => {
+    let cancelRaf: number | null = null
+    const tick = () => {
+      const map = getMap()
+      if (!map) {
+        cancelRaf = requestAnimationFrame(tick)
+        return
+      }
+      const expr: any = [
+        'case',
+        ['==', ['get', 'id'], activeId ?? '__none__'],
+        ORANGE,
+        ORANGE,
+      ]
+      try {
+        map.setPaintProperty(layerId, 'circle-color', expr)
+      } catch {}
+    }
+    tick()
+    return () => {
+      if (cancelRaf !== null) cancelAnimationFrame(cancelRaf)
+    }
+  }, [getMap, activeId, layerId])
 
   return null
 }
