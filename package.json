@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "analyze": "ANALYZE=true next build",
     "db:types": "mkdir -p src/types && supabase gen types typescript --linked > src/types/supabase.ts",
-    "check:unused": "ts-prune -p tsconfig.json \"src/**/*.{ts,tsx}\""
+    "check:unused": "ts-prune -p tsconfig.json \"src/**/*.{ts,tsx}\"",
+    "path:all": "node scripts/path-header.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.7",

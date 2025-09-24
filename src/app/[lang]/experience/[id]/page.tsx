@@ -1,6 +1,6 @@
-// src/app/[lang]/experience/[id]/page.tsx
-import { supabase } from '@/lib/supabaseClient'
-import ExperienceView from '@/components/experience/ExperienceView'
+// @path: src/app/[lang]/experience/[id]/page.tsx
+import ExperienceView from '@/features/experience/ExperienceView'
+import { supabase } from '@/shared/lib/supabaseClient'
 
 function formatLabel(iso: string | null): string | null {
   if (!iso) return null

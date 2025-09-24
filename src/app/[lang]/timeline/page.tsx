@@ -1,21 +1,21 @@
-// src/app/[lang]/timeline/page.tsx
+// @path: src/app/[lang]/timeline/page.tsx
 'use client'
 
 import Link from 'next/link'
-
 import {
   timelineEvents,
   overviewCities,
-} from '@/components/timeline/timeline.data'
+} from '@/features/timeline/data/timeline'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
-import { useTimelineCtx } from '@/app/context/timeline/context'
-import { slugify } from '@/lib/slugify'
+import { useTimelineCtx } from '@/features/timeline/context'
+import { slugify } from '@/shared/lib/slugify'
 import scrollIntoView from 'scroll-into-view-if-needed'
-import { CardsReveal, StrokeTitle } from '@/components/timeline'
-import { ViewportCenterLine } from '@/components/timeline'
-import { CAM_PRESET } from '@/lib/mapbox/cameraPresets'
-import OverviewRailSections from '@/components/timeline/OverviewRail'
+import CardsReveal from '@/shared/sections/CardsReveal'
+import StrokeTitle from '@/shared/typography/StrokeTitle'
+import ViewportCenterLine from '@/shared/ui/ViewportCenterLine'
+import { CAM_PRESET } from '@/shared/map/utils/cameraPresets'
+import OverviewRailSections from '@/features/timeline/components/OverviewRailSections'
 
 export default function TimelineOverviewPage() {
   const { easeTo, isMapReady, setDetailModeAudio } = useTimelineCtx()

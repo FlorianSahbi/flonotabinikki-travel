@@ -1,4 +1,4 @@
-// src/app/[lang]/timeline/[id]/page.tsx
+// @path: src/app/[lang]/timeline/[id]/page.tsx
 'use client'
 
 import Link from 'next/link'
@@ -7,11 +7,12 @@ import { useParams, useSearchParams } from 'next/navigation'
 import {
   overviewCities,
   type TimelineEvent,
-} from '@/components/timeline/timeline.data'
-import { DetailTimeline, TitleHero } from '@/components/timeline'
-import { useTimelineCtx } from '@/app/context/timeline/context'
-import { slugify } from '@/lib/slugify'
-import { CAM_PRESET } from '@/lib/mapbox/cameraPresets' // ⬅️ NEW
+} from '@/features/timeline/data/timeline'
+import DetailTimeline from '@/features/timeline/components/DetailTimeline'
+import TitleHero from '@/shared/ui/TitleHero'
+import { useTimelineCtx } from '@/features/timeline/context'
+import { slugify } from '@/shared/lib/slugify'
+import { CAM_PRESET } from '@/shared/map/utils/cameraPresets'
 
 async function loadCityEvents(slug: string): Promise<TimelineEvent[]> {
   try {
@@ -27,8 +28,9 @@ async function loadCityEvents(slug: string): Promise<TimelineEvent[]> {
 }
 
 export default function TimelineDetailPage() {
-  const routeParams = useParams()
-  const rawIdParam = (routeParams?.id ?? '') as string | string[]
+  const params = useParams<{ lang: string; id?: string }>()
+  const lang = params?.lang
+  const rawIdParam = params?.id ?? ''
   const numericId = Number(
     Array.isArray(rawIdParam) ? rawIdParam[0] : rawIdParam
   )
@@ -78,12 +80,12 @@ export default function TimelineDetailPage() {
   }, [searchParams, currentCity])
 
   const qs = searchParams?.toString()
-  const backHref = `..${qs ? `?${qs}` : ''}`
+  const backHref = `/${lang}/timeline${qs ? `?${qs}` : ''}`
 
   return (
     <main className="relative">
       <Link
-        href={`timeline/${backHref}`}
+        href={backHref}
         scroll={false}
         aria-label="Back to the list of cities"
         className="fixed left-4 top-4 z-40 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-white/90 backdrop-blur transition hover:bg-white/16 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-white/30"

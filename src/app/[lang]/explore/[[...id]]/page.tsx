@@ -1,14 +1,15 @@
-// src/app/[lang]/explore/[[...id]]/page.tsx
-import ExploreShellClient from '@/components/explore/ExploreShellClient'
-import { supabase } from '@/lib/supabaseClient'
-import type { FeedItem } from '@/lib/feed'
+// @path: src/app/[lang]/explore/[[...id]]/page.tsx
+import ExploreShellClient from '@/features/explore/ExploreShellClient'
+import { supabase } from '@/shared/lib/supabaseClient'
+import type { FeedItem } from '@/features/feed'
 
 export default async function ExplorePage({
   params,
 }: {
-  params: { lang: string; id?: string[] }
+  params: Promise<{ lang: string; id?: string[] }>
 }) {
-  const initialFocusId = params.id?.[0] ?? null
+  const { id } = await params
+  const initialFocusId = id?.[0] ?? null
 
   const { data: videosWithCoordinates } = await supabase
     .from('videos')
