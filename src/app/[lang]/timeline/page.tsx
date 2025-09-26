@@ -16,6 +16,7 @@ import StrokeTitle from '@/shared/typography/StrokeTitle'
 import ViewportCenterLine from '@/shared/ui/ViewportCenterLine'
 import { CAM_PRESET } from '@/shared/map/utils/cameraPresets'
 import OverviewRailSections from '@/features/timeline/components/OverviewRailSections'
+import MobileFillTitle from '@/shared/typography/MobileFillTitle'
 
 export default function TimelineOverviewPage() {
   const { easeTo, isMapReady, setDetailModeAudio } = useTimelineCtx()
@@ -27,7 +28,20 @@ export default function TimelineOverviewPage() {
   const [initialActiveIndex, setInitialActiveIndex] = useState<
     number | undefined
   >(undefined)
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  const [sectionProgress, setSectionProgress] = useState(0) // 0 → 1
+  const [actionLabel, setActionLabel] = useState('') // "Appuyer…" ou "Cliquer…"
+
   const itemElsRef = useRef(new Map<string, HTMLElement>())
+
+  // Détermine un libellé unique selon l'appareil (sans afficher les deux)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const isTouch =
+      window.matchMedia?.('(hover: none), (pointer: coarse)')?.matches ||
+      (navigator as any).maxTouchPoints > 0
+    setActionLabel(isTouch ? 'Appuyer pour ouvrir' : 'Cliquer pour ouvrir')
+  }, [])
 
   const getSlug = useCallback(
     (e: { title: string; [k: string]: any }) => e.slug ?? slugify(e.title),
@@ -94,6 +108,9 @@ export default function TimelineOverviewPage() {
     (entry?: any) => {
       if (!entry) return
       setActiveEntry(entry)
+      const idx = overviewCities.findIndex((e) => e.id === entry.id)
+      setActiveIndex(idx >= 0 ? idx : null)
+
       const slug = getSlug(entry as any)
       setQueryParam('city', slug)
       flyToEntry(entry)
@@ -115,6 +132,7 @@ export default function TimelineOverviewPage() {
     const index = overviewCities.findIndex((e) => e.id === entry.id)
     if (index < 0) return
     setInitialActiveIndex(index)
+    setActiveIndex(index)
 
     requestAnimationFrame(() => {
       const el =
@@ -131,6 +149,54 @@ export default function TimelineOverviewPage() {
     })
   }, [searchParams, entriesBySlug])
 
+  // Progression (0→1) entre l’item actif et le suivant, basée sur la position verticale du centre viewport
+  useEffect(() => {
+    const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v))
+    const getElByIndex = (idx: number | null) => {
+      if (idx == null || idx < 0 || idx >= overviewCities.length) return null
+      const slug = getSlug(overviewCities[idx] as any)
+
+      return (
+        itemElsRef.current.get(slug) ||
+        document.querySelector<HTMLElement>(
+          `[data-city-id="${overviewCities[idx]?.id}"]`
+        )
+      )
+    }
+
+    const compute = () => {
+      if (activeIndex == null) {
+        setSectionProgress(0)
+        return
+      }
+      const cur = getElByIndex(activeIndex)
+      const next = getElByIndex(activeIndex + 1)
+      if (!cur || !next) {
+        setSectionProgress(0)
+        return
+      }
+
+      const centerY = window.scrollY + window.innerHeight * 0.5
+      const topCur = cur.getBoundingClientRect().top + window.scrollY
+      const topNext = next.getBoundingClientRect().top + window.scrollY
+
+      const start = topCur
+      const end = topNext
+      const p = clamp((centerY - start) / Math.max(1, end - start))
+      setSectionProgress(p)
+    }
+
+    compute()
+    const onScroll = () => compute()
+    const onResize = () => compute()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onResize)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [activeIndex, getSlug])
+
   const mediaItems = timelineEvents
     .slice(0, 6)
     .map((evt) => ({ kind: 'video' as const, src: evt.image }))
@@ -145,6 +211,7 @@ export default function TimelineOverviewPage() {
             href={`timeline/${activeEntry.id}${suffix}`}
             scroll={false}
             className="pointer-events-auto inline-block"
+            aria-label={`Ouvrir ${activeEntry.title}`}
             onClick={() => {
               setDetailModeAudio(true)
               easeTo(
@@ -158,50 +225,47 @@ export default function TimelineOverviewPage() {
               )
             }}
           >
-            <div
-              className="relative block md:hidden"
-              style={{ width: 0, height: 0 }}
-            >
-              <div className="absolute left-1/2 top-1/2 -translate-x-[28vw] -translate-y-1/2">
-                <StrokeTitle
+            {/* Wrapper interactif : pas de scale au hover */}
+            <div className="group relative cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black rounded-xl transition-transform duration-150 active:scale-[0.98]">
+              {/* MOBILE : remplissage par derrière avec plateau lissé 25–75% */}
+              <div className="block md:hidden">
+                <MobileFillTitle
                   title={activeEntry.title}
-                  fontPxTitle={64}
-                  strokeWidthTitle={2}
-                  dashTitle="5100"
-                  durationSec={0.9}
-                  hoverFillSec={0.45}
+                  kanji={activeEntry.kanji}
+                  progress={sectionProgress}
+                  titleFontPx={54}
+                  kanjiFontPx={32}
+                  gapPx={28}
+                  offsetYPx={8}
                 />
               </div>
 
-              {activeEntry.kanji && (
-                <div className="absolute left-1/2 top-1/2 translate-x-[28vw] -translate-y-1/2">
-                  <StrokeTitle
-                    kanji={activeEntry.kanji}
-                    fontPxKanji={44}
-                    strokeWidthKanji={1}
-                    dashKanji="5100"
-                    durationSec={0.85}
-                    kanjiDelaySec={0.06}
-                    hoverFillSec={0.45}
-                  />
+              {/* DESKTOP : SVG stroke animé au hover (aucun scale) */}
+              <div className="hidden md:block">
+                <StrokeTitle
+                  title={activeEntry.title}
+                  kanji={activeEntry.kanji}
+                  fontPxTitle={136}
+                  fontPxKanji={40}
+                />
+              </div>
+
+              {/* Indice discret, unique (appareil-aware) */}
+              {actionLabel && (
+                <div
+                  aria-hidden
+                  className="
+      mx-auto mt-3 w-fit rounded-full
+      px-2.5 py-1 text-[10px] md:text-xs
+      text-white/90 bg-black/20 backdrop-blur-[2px]
+      pointer-events-none select-none
+      transition-opacity duration-300
+      opacity-80 md:opacity-50 md:group-hover:opacity-100
+    "
+                >
+                  {actionLabel}
                 </div>
               )}
-            </div>
-
-            <div className="hidden md:block">
-              <StrokeTitle
-                title={activeEntry.title}
-                {...(activeEntry.kanji ? { kanji: activeEntry.kanji } : {})}
-                fontPxTitle={136}
-                fontPxKanji={40}
-                strokeWidthTitle={2}
-                strokeWidthKanji={1}
-                dashTitle="5100"
-                dashKanji="5100"
-                durationSec={1.0}
-                kanjiDelaySec={0.08}
-                hoverFillSec={0.45}
-              />
             </div>
           </Link>
         )}
