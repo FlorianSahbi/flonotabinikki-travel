@@ -2,11 +2,8 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from '@/shared/lib/supabaseClient'
 import BackgroundVideoCarousel from '@/shared/media/BackgroundVideoCarousel'
-import { FeedItem } from '@/features/feed'
-
-const LIMIT = 5
+import { FeedItem, useClusterVideos } from '@/features/feed'
 
 export default function ClusterExperienceSlide({
   item,
@@ -17,7 +14,6 @@ export default function ClusterExperienceSlide({
   href?: string
   onClick?: () => void
 }) {
-  const [sources, setSources] = useState<string[]>([])
   const [visible, setVisible] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
@@ -34,32 +30,17 @@ export default function ClusterExperienceSlide({
     return () => io.disconnect()
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-    if (!visible) return
-    ;(async () => {
-      const { data, error } = await supabase
-        .from('videos')
-        .select('*')
-        .eq('cluster_id', item.id)
-        .order('recorded_at', { ascending: true })
-        .limit(LIMIT)
+  const { items } = useClusterVideos(item.id, { enabled: visible, limit: 5 })
 
-      if (!cancelled && !error && data?.length) {
-        const urls = data.map((r) => r.main_url as string).filter(Boolean)
-        setSources(urls)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [visible, item.id])
+  const sources = useMemo(
+    () => items.map((v) => v.main_url).filter(Boolean),
+    [items]
+  )
 
-  const handleOpen = async () => {
-    if (href) {
-      onClick?.()
-    }
-    setTimeout(() => {}, 600)
+  const handleOpen = () => {
+    onClick?.()
+    // href is intentionally not used - parent handles navigation
+    void href
   }
 
   const dateStr = useMemo(() => {

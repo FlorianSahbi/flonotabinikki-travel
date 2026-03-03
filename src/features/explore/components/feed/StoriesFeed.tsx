@@ -1,25 +1,19 @@
 // @path: src/features/explore/components/feed/StoriesFeed.tsx
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { Swiper, SwiperSlide } from 'swiper/react'
-import { Mousewheel } from 'swiper/modules'
-import 'swiper/css'
-
+import { useEffect, useRef, useCallback } from 'react'
 import type { FeedItem } from '@/features/feed'
 import { useExploreStore } from '@/features/explore/useExploreStore'
 import type { FeatureCollection, Point } from 'geojson'
 import { useMapCtx } from '@/shared/map/context/MapContext'
-import { dateLabel, useStoriesFeed, useVideoPlaylist } from '@/features/feed'
-
+import { useStoriesFeed, useVideoPlaylist } from '@/features/feed'
+import VerticalVideoSwiper, {
+  SwiperRef,
+  SlideRenderProps,
+} from '@/features/feed/components/VerticalVideoSwiper'
 import FeedMap from './FeedMap'
 import VideoSlide from '@/features/feed/components/slides/VideoSlide'
 import ClusterSlide from './slides/ClusterSlide'
-
-type SwiperLike = {
-  activeIndex: number
-  slideTo: (index: number, speed?: number) => void
-}
 
 export default function StoriesFeed({
   initialId,
@@ -27,21 +21,23 @@ export default function StoriesFeed({
   videosGeoJSON,
   showMiniMap = true,
   controlExternalMap = false,
+  onOpenCluster,
 }: {
   initialId: string
   initialItems: FeedItem[]
   videosGeoJSON: FeatureCollection<Point, { id: string }>
   showMiniMap?: boolean
   controlExternalMap?: boolean
+  onOpenCluster?: (clusterId: string) => void
 }) {
-  const swiperRef = useRef<SwiperLike | null>(null)
+  const swiperRef = useRef<SwiperRef>(null)
   const mapCtx = useMapCtx()
+
   const setFocus = useExploreStore((s) => s.setFocus)
 
-  const { setVideoRefAt, playForIndex, isMuted, toggleSound } =
-    useVideoPlaylist()
+  const { playForIndex } = useVideoPlaylist()
 
-  const { items, initialIndex, handleSlideChange, appendAfter, prependBefore } =
+  const { items, initialIndex, handleSlideChange, checkAndLoad } =
     useStoriesFeed({
       initialId,
       initialItems,
@@ -58,25 +54,35 @@ export default function StoriesFeed({
     return [Number(cur?.lng ?? 0), Number(cur?.lat ?? 0)]
   }
 
-  const doEaseTo = (idx: number) => {
-    if (!controlExternalMap) return
-    const [lng, lat] = centerForIndex(idx)
-    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
-    mapCtx.easeTo(
-      { center: [lng, lat], bearing: 0, pitch: 50 },
-      { duration: 400 }
-    )
-  }
+  const doEaseTo = useCallback(
+    (idx: number) => {
+      if (!controlExternalMap) return
+      const cur = items[idx]
+      if (!cur) return
+      const lng = Number(cur.lng ?? 0)
+      const lat = Number(cur.lat ?? 0)
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
+      mapCtx.easeTo(
+        { center: [lng, lat], zoom: 12, bearing: 0, pitch: 0 },
+        { duration: 600 }
+      )
+    },
+    [controlExternalMap, items, mapCtx]
+  )
 
   const rafRef = useRef<number | null>(null)
-  const rafEaseTo = (idx: number) => {
-    if (!controlExternalMap) return
-    if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
-    rafRef.current = requestAnimationFrame(() => {
-      doEaseTo(idx)
-      rafRef.current = null
-    })
-  }
+  const rafEaseTo = useCallback(
+    (idx: number) => {
+      if (!controlExternalMap) return
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(() => {
+        doEaseTo(idx)
+        rafRef.current = null
+      })
+    },
+    [controlExternalMap, doEaseTo]
+  )
+
   useEffect(
     () => () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
@@ -84,16 +90,64 @@ export default function StoriesFeed({
     []
   )
 
-  const activeIndex = () => swiperRef.current?.activeIndex ?? initialIndex
-  const activeId = items[activeIndex()]?.id ?? null
-  const activeCenter = centerForIndex(activeIndex())
+  const activeIndexValue = swiperRef.current?.activeIndex ?? initialIndex
+  const activeId = items[activeIndexValue]?.id ?? null
+  const activeCenter = centerForIndex(activeIndexValue)
 
   useEffect(() => {
     if (!controlExternalMap) return
     if (!activeId) return
-    rafEaseTo(activeIndex())
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, controlExternalMap])
+    rafEaseTo(activeIndexValue)
+  }, [activeId, controlExternalMap, rafEaseTo, activeIndexValue])
+
+  const handleOpenCluster = useCallback(
+    (clusterId: string) => {
+      onOpenCluster?.(clusterId)
+    },
+    [onOpenCluster]
+  )
+
+  const onSlideChangeHandler = useCallback(
+    (idx: number, item: FeedItem) => {
+      handleSlideChange(idx)
+      setFocus(item.id, { fetch: false, source: 'stories' })
+      if (controlExternalMap) rafEaseTo(idx)
+      checkAndLoad(idx)
+    },
+    [handleSlideChange, setFocus, controlExternalMap, rafEaseTo, checkAndLoad]
+  )
+
+  const onSwiperHandler = useCallback(
+    (swiper: { activeIndex: number }) => {
+      const current = items[swiper.activeIndex]
+      if (current) {
+        setFocus(current.id, { fetch: false, source: 'stories' })
+        if (controlExternalMap) rafEaseTo(swiper.activeIndex)
+      }
+    },
+    [items, setFocus, controlExternalMap, rafEaseTo]
+  )
+
+  const renderSlide = useCallback(
+    (item: FeedItem, itemIndex: number, props: SlideRenderProps) => {
+      if (item.kind === 'video') {
+        return (
+          <VideoSlide
+            item={item}
+            index={itemIndex}
+            initialIndex={props.initialIndex}
+            nextIndex={props.nextIndex}
+            setVideoRefAt={props.setVideoRefAt}
+            dateLabel={props.dateLabel}
+            isMuted={props.isMuted}
+            onToggleSound={props.onToggleSound}
+          />
+        )
+      }
+      return <ClusterSlide item={item} onOpen={handleOpenCluster} />
+    },
+    [handleOpenCluster]
+  )
 
   return (
     <div className="relative h-full w-full bg-black overflow-hidden">
@@ -107,72 +161,14 @@ export default function StoriesFeed({
         </div>
       )}
 
-      <Swiper
-        modules={[Mousewheel]}
-        direction="vertical"
-        slidesPerView={1}
-        mousewheel={{ forceToAxis: true, sensitivity: 1 }}
-        resistanceRatio={0.85}
-        initialSlide={initialIndex}
-        onSwiper={(instance: any) => {
-          swiperRef.current = instance
-          const current = items[instance.activeIndex]
-          if (current) {
-            setFocus(current.id, { fetch: false, source: 'stories' })
-            if (controlExternalMap) rafEaseTo(instance.activeIndex)
-          }
-          playForIndex(instance.activeIndex)
-        }}
-        onSlideChange={(instance: any) => {
-          const idx = instance.activeIndex
-          handleSlideChange(idx)
-          const current = items[idx] ?? items[0]
-          if (current) {
-            setFocus(current.id, { fetch: false, source: 'stories' })
-          }
-          if (controlExternalMap) rafEaseTo(idx)
-          if (idx >= items.length - 2) appendAfter()
-          if (idx <= 1) prependBefore()
-        }}
-        className="h-full w-full"
-        threshold={10}
-        longSwipes
-        longSwipesRatio={0.3}
-        longSwipesMs={300}
-        followFinger
-        touchReleaseOnEdges
-        allowTouchMove
-        speed={400}
-      >
-        {items.map((item, itemIndex) => {
-          const nextIndex = Math.min(itemIndex + 1, items.length - 1)
-          const label = dateLabel(item.recorded_at)
-
-          return (
-            <SwiperSlide key={item.id} className="!h-full !w-full">
-              <div className="relative h-full w-full overflow-hidden">
-                {item.kind === 'video' ? (
-                  <VideoSlide
-                    item={item}
-                    index={itemIndex}
-                    initialIndex={initialIndex}
-                    nextIndex={nextIndex}
-                    setVideoRefAt={setVideoRefAt}
-                    dateLabel={label}
-                    isMuted={isMuted}
-                    onToggleSound={() => {
-                      const active = swiperRef.current?.activeIndex ?? itemIndex
-                      toggleSound(active)
-                    }}
-                  />
-                ) : (
-                  <ClusterSlide item={item} />
-                )}
-              </div>
-            </SwiperSlide>
-          )
-        })}
-      </Swiper>
+      <VerticalVideoSwiper
+        items={items}
+        initialIndex={initialIndex}
+        swiperRef={swiperRef}
+        onSlideChange={onSlideChangeHandler}
+        onSwiper={onSwiperHandler}
+        renderSlide={renderSlide}
+      />
     </div>
   )
 }

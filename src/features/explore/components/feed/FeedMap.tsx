@@ -17,7 +17,7 @@ export default function FeedMap({
   center,
   className,
 }: {
-  data: FeatureCollection<Point, { id: string }>
+  data: FeatureCollection<Point, { id: string; kind?: 'video' | 'cluster' }>
   activeId?: string | null
   center: [number, number]
   className?: string

@@ -1,18 +1,26 @@
 // @path: src/features/explore/ExploreMap.tsx
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import type { FeatureCollection, Point } from 'geojson'
-import { CAM_PRESET } from '@/shared/map/utils/cameraPresets'
 import VideosPointsLayer from '@/shared/map/layers/VideosPointsLayer'
 import { useMapbox, View } from '@/shared/map/hooks/useMapbox'
+import { useAttachMapContext } from '@/shared/map/hooks/useAttachMapContext'
 
 type Props = {
   accessToken?: string
-  data: FeatureCollection<Point, { id: string }>
+  data: FeatureCollection<Point, { id: string; kind?: 'video' | 'cluster' }>
   activeId?: string | null
-  onPointClick?: (id: string, lngLat: [number, number]) => void
-  onSelectId?: (id: string) => void | Promise<void>
+  onPointClick?: (
+    id: string,
+    lngLat: [number, number],
+    kind?: 'video' | 'cluster'
+  ) => void
+  onSelectId?: (
+    id: string,
+    meta?: { kind?: 'video' | 'cluster'; lngLat?: [number, number] }
+  ) => void | Promise<void>
+  onReady?: (api: { getMap: () => any | null }) => void
   className?: string
 }
 
@@ -22,15 +30,28 @@ export default function ExploreMap({
   activeId,
   onPointClick,
   onSelectId,
+  onReady,
   className = '',
 }: Props) {
   const { containerRef, api } = useMapbox({ accessToken, interactive: true })
 
+  // Connect map to MapContext so StoriesFeed can control camera
+  useAttachMapContext(api)
+
   const storedViewportRef = useRef<Partial<View> | null>(null)
 
-  const handleClick = (id: string, lngLat: [number, number]) => {
-    onPointClick?.(id, lngLat)
-    onSelectId?.(id)
+  useEffect(() => {
+    onReady?.({ getMap: api.getMap })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleClick = (
+    id: string,
+    lngLat: [number, number],
+    kind?: 'video' | 'cluster'
+  ) => {
+    onPointClick?.(id, lngLat, kind)
+    onSelectId?.(id, kind ? { kind, lngLat } : { lngLat })
 
     const m = api.getMap()
     if (m) {
@@ -51,15 +72,7 @@ export default function ExploreMap({
       }
     }
 
-    api.easeTo(
-      {
-        center: [lngLat[0], lngLat[1]],
-        zoom: CAM_PRESET.detail.zoom,
-        pitch: CAM_PRESET.detail.pitch,
-        bearing: CAM_PRESET.detail.bearing,
-      },
-      { duration: 700 }
-    )
+    // ⚠️ Pas de zoom/easeTo ici : tu as demandé de ne pas bouger la caméra au clic.
   }
 
   return (

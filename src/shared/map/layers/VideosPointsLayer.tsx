@@ -4,8 +4,9 @@
 import { useEffect } from 'react'
 import type { FeatureCollection, Point } from 'geojson'
 
-const ORANGE = '#FF5722'
-const BLUE = '#3B82F6'
+const ORANGE = '#FF5722' // vidéos (non actives)
+const BLUE = '#3B82F6' // actif (tous types)
+const GREEN = '#22C55E' // clusters (non actifs)
 
 export default function VideosPointsLayer({
   getMap,
@@ -18,9 +19,13 @@ export default function VideosPointsLayer({
   strokeWidth = 1,
 }: {
   getMap: () => any | null
-  data: FeatureCollection<Point, { id: string }>
+  data: FeatureCollection<Point, { id: string; kind?: 'video' | 'cluster' }>
   activeId?: string | null
-  onClick?: (id: string, lngLat: [number, number]) => void
+  onClick?: (
+    id: string,
+    lngLat: [number, number],
+    kind?: 'video' | 'cluster'
+  ) => void
   sourceId?: string
   layerId?: string
   radius?: number
@@ -46,7 +51,13 @@ export default function VideosPointsLayer({
           'circle-stroke-width': strokeWidth,
           'circle-stroke-color': '#fff',
           'circle-opacity': 0.95,
-          'circle-color': ORANGE,
+          // ⬇️ couleur: vert si cluster, sinon orange
+          'circle-color': [
+            'case',
+            ['==', ['get', 'kind'], 'cluster'],
+            GREEN,
+            ORANGE,
+          ],
         },
       })
     } else {
@@ -55,6 +66,13 @@ export default function VideosPointsLayer({
         map.setPaintProperty(layerId, 'circle-stroke-width', strokeWidth)
         map.setPaintProperty(layerId, 'circle-stroke-color', '#fff')
         map.setPaintProperty(layerId, 'circle-opacity', 0.95)
+        // réapplique l’expression de couleur au cas où le style a changé
+        map.setPaintProperty(layerId, 'circle-color', [
+          'case',
+          ['==', ['get', 'kind'], 'cluster'],
+          GREEN,
+          ORANGE,
+        ])
       } catch {}
     }
 
@@ -231,10 +249,11 @@ export default function VideosPointsLayer({
           const id = f?.properties?.id as string | undefined
           if (!id) return
           const [lng, lat] = f.geometry.coordinates
+          const kind = f?.properties?.kind as 'video' | 'cluster' | undefined
           try {
             map.getCanvas().style.cursor = ''
           } catch {}
-          onClick(id, [lng, lat])
+          onClick(id, [lng, lat], kind)
         } catch {}
       }
 
@@ -269,30 +288,6 @@ export default function VideosPointsLayer({
       if (remove) remove()
     }
   }, [getMap, layerId, onClick])
-
-  useEffect(() => {
-    let cancelRaf: number | null = null
-    const tick = () => {
-      const map = getMap()
-      if (!map) {
-        cancelRaf = requestAnimationFrame(tick)
-        return
-      }
-      const expr: any = [
-        'case',
-        ['==', ['get', 'id'], activeId ?? '__none__'],
-        ORANGE,
-        ORANGE,
-      ]
-      try {
-        map.setPaintProperty(layerId, 'circle-color', expr)
-      } catch {}
-    }
-    tick()
-    return () => {
-      if (cancelRaf !== null) cancelAnimationFrame(cancelRaf)
-    }
-  }, [getMap, activeId, layerId])
 
   return null
 }

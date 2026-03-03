@@ -2,6 +2,14 @@
 import ExploreShellClient from '@/features/explore/ExploreShellClient'
 import { supabase } from '@/shared/lib/supabaseClient'
 import type { FeedItem } from '@/features/feed'
+import type { FeatureCollection, Point } from 'geojson'
+
+type MapPoint = {
+  id: string
+  lat: number
+  lng: number
+  kind: 'video' | 'cluster'
+}
 
 export default async function ExplorePage({
   params,
@@ -11,27 +19,33 @@ export default async function ExplorePage({
   const { id } = await params
   const initialFocusId = id?.[0] ?? null
 
-  const { data: videosWithCoordinates } = await supabase
-    .from('videos')
-    .select('id, lat, lng')
-    .not('lat', 'is', null)
-    .not('lng', 'is', null)
+  // v2: on lit la vue "map_points_simple" (clusters + vidéos sans cluster)
+  const { data: points } = await supabase
+    .from('map_points_simple')
+    .select('id, lat, lng, kind')
 
-  const videos = (videosWithCoordinates ?? []) as {
-    id: string
-    lat: number
-    lng: number
-  }[]
+  const items = (points ?? []) as MapPoint[]
 
-  const videosGeoJSON = {
-    type: 'FeatureCollection' as const,
-    features: videos.map((p) => ({
-      type: 'Feature' as const,
+  // Pour le composant ExploreShellClient, on garde le shape minimal (id,lat,lng)
+  const plainPoints = items.map((p) => ({
+    id: p.id,
+    lat: Number(p.lat),
+    lng: Number(p.lng),
+  }))
+
+  // GeoJSON avec "kind" en propriété (pour styliser différemment si tu veux)
+  const videosGeoJSON: FeatureCollection<
+    Point,
+    { id: string; kind: 'video' | 'cluster' }
+  > = {
+    type: 'FeatureCollection',
+    features: items.map((p) => ({
+      type: 'Feature',
       geometry: {
-        type: 'Point' as const,
+        type: 'Point',
         coordinates: [Number(p.lng), Number(p.lat)],
       },
-      properties: { id: p.id as string },
+      properties: { id: p.id, kind: p.kind },
     })),
   }
 
@@ -47,7 +61,7 @@ export default async function ExplorePage({
   return (
     <div className="h-dvh w-screen bg-black">
       <ExploreShellClient
-        points={videos}
+        points={plainPoints}
         videosGeoJSON={videosGeoJSON}
         initialFocusId={initialFocusId}
         initialContextItems={contextItems}
